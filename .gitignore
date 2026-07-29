@@ -1,0 +1,34 @@
+# Built artifacts and Gradle files
+.gradle/
+build/
+/*/build/
+.kotlin/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+local.properties
+.navigation/
+captures/
+.cxx/
+*.apk
+*.aar
+*.ap_
+
+# Keystore / Signing files
+*.jks
+*.keystore
+*.pepk
+
+# Firebase / Secrets keys (should be loaded securely/dynamically)
+google-services.json
+secrets.properties
+
+# OS/System files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
