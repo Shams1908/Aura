@@ -32,3 +32,6 @@ include(":feature:ai")
 include(":feature:rendering")
 include(":feature:shopping")
 include(":feature:profile")
+
+include(":app")
+

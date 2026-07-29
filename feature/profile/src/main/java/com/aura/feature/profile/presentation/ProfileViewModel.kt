@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface ProfileUiState {
@@ -37,4 +38,10 @@ class ProfileViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ProfileUiState.Loading
         )
+
+    fun unsaveOutfit(entity: SavedOutfitEntity) {
+        viewModelScope.launch {
+            savedOutfitDao.deleteOutfit(entity)
+        }
+    }
 }
