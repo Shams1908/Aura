@@ -2,14 +2,22 @@ package com.aura.feature.home.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.aura.core.common.data.OutfitModel
 import com.aura.core.common.data.OutfitRepository
+import com.aura.core.common.network.NetworkMonitor
 import com.aura.core.database.dao.SavedOutfitDao
 import com.aura.core.database.entity.SavedOutfitEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,30 +33,39 @@ sealed interface HomeUiState {
     data class Error(val message: String) : HomeUiState
 }
 
-sealed interface SearchUiState {
-    object Idle : SearchUiState
-    object Loading : SearchUiState
-    data class Success(
-        val results: List<OutfitModel>,
-        val savedOutfitIds: Set<String>
-    ) : SearchUiState
-    data class Error(val message: String) : SearchUiState
-}
-
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val outfitRepository: OutfitRepository,
-    private val savedOutfitDao: SavedOutfitDao
+    private val savedOutfitDao: SavedOutfitDao,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _homeState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val homeState: StateFlow<HomeUiState> = _homeState.asStateFlow()
 
-    private val _searchState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-    val searchState: StateFlow<SearchUiState> = _searchState.asStateFlow()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    var searchQuery = MutableStateFlow("")
-        private set
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
+    val recentSearches: StateFlow<List<String>> = outfitRepository.getRecentSearches()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val searchPagedResults: Flow<PagingData<OutfitModel>> = _searchQuery
+        .flatMapLatest { query ->
+            outfitRepository.searchOutfitsPaged(query)
+        }
+        .cachedIn(viewModelScope)
 
     init {
         loadHomeData()
@@ -58,7 +75,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _homeState.value = HomeUiState.Loading
             try {
-                // Collect saved outfit IDs to update UI state dynamically
                 savedOutfitDao.getAllSavedOutfits().collect { savedList ->
                     val savedIds = savedList.map { it.id }.toSet()
                     
@@ -79,26 +95,10 @@ class HomeViewModel @Inject constructor(
     }
 
     fun searchPins(query: String) {
-        searchQuery.value = query
-        if (query.isBlank()) {
-            _searchState.value = SearchUiState.Idle
-            return
-        }
+        _searchQuery.value = query
         viewModelScope.launch {
-            _searchState.value = SearchUiState.Loading
-            try {
-                savedOutfitDao.getAllSavedOutfits().collect { savedList ->
-                    val savedIds = savedList.map { it.id }.toSet()
-                    
-                    outfitRepository.searchOutfits(query).collect { results ->
-                        _searchState.value = SearchUiState.Success(
-                            results = results,
-                            savedOutfitIds = savedIds
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _searchState.value = SearchUiState.Error(e.localizedMessage ?: "Search failed.")
+            if (query.isNotBlank()) {
+                outfitRepository.addSearchQueryToHistory(query)
             }
         }
     }

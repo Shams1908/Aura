@@ -31,9 +31,15 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling-preview)
     implementation(libs.androidx.compose.material3)
     
+    // Paging 3 Compose Integration
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+    
     // Submodules
+    implementation(project(":core:common"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))
+    implementation(project(":core:designsystem"))
     
     implementation(libs.hilt.android)
     annotationProcessor(libs.hilt.compiler)

@@ -1,7 +1,9 @@
 package com.aura.core.common.di
 
-import com.aura.core.common.data.MockOutfitRepositoryImpl
+import com.aura.core.common.data.RemoteOutfitRepositoryImpl
 import com.aura.core.common.data.OutfitRepository
+import com.aura.core.common.network.LiveNetworkMonitor
+import com.aura.core.common.network.NetworkMonitor
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -15,6 +17,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindOutfitRepository(
-        impl: MockOutfitRepositoryImpl
+        impl: RemoteOutfitRepositoryImpl
     ): OutfitRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNetworkMonitor(
+        impl: LiveNetworkMonitor
+    ): NetworkMonitor
 }

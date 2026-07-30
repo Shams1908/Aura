@@ -27,6 +27,15 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     
+    // Paging 3
+    implementation(libs.androidx.paging.runtime)
+    
+    // Database reference (for Room entities or DAOs inside Repository)
+    implementation(project(":core:database"))
+    
+    // Network models reference
+    implementation(project(":core:network"))
+    
     implementation(libs.hilt.android)
     annotationProcessor(libs.hilt.compiler)
     

@@ -10,7 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,20 +38,24 @@ class OutfitDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = OutfitDetailUiState.Loading
             try {
-                outfitRepository.getOutfitDetails(outfitId).collect { outfit ->
+                // Combine details flow, save status flow, and similar recommendations flow
+                combine(
+                    outfitRepository.getOutfitDetails(outfitId),
+                    savedOutfitDao.isOutfitSaved(outfitId),
+                    outfitRepository.getSimilarOutfits(outfitId)
+                ) { outfit, isSaved, similar ->
                     if (outfit != null) {
-                        savedOutfitDao.isOutfitSaved(outfitId).collect { saved ->
-                            outfitRepository.getRecommendedOutfits().collect { similar ->
-                                _uiState.value = OutfitDetailUiState.Success(
-                                    outfit = outfit,
-                                    isSaved = saved,
-                                    similarOutfits = similar.filter { it.id != outfitId }.take(5)
-                                )
-                            }
-                        }
+                        OutfitDetailUiState.Success(
+                            outfit = outfit,
+                            isSaved = isSaved,
+                            similarOutfits = similar
+                        )
                     } else {
-                        _uiState.value = OutfitDetailUiState.Error("Outfit not found.")
+                        OutfitDetailUiState.Error("Outfit specs not found in cache or backend.")
                     }
+                }
+                .collect { state ->
+                    _uiState.value = state
                 }
             } catch (e: Exception) {
                 _uiState.value = OutfitDetailUiState.Error(e.localizedMessage ?: "Failed to load details.")

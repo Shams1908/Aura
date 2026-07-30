@@ -1,7 +1,9 @@
 package com.aura.feature.home.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,11 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +36,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.aura.core.designsystem.components.AuraCard
 import com.aura.core.designsystem.components.AuraEmptyState
 import com.aura.core.designsystem.components.AuraLoadingIndicator
@@ -49,9 +54,11 @@ fun SearchScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
-    val searchState by viewModel.searchState.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val recentSearches by viewModel.recentSearches.collectAsState()
 
+    val lazyPagingItems = viewModel.searchPagedResults.collectAsLazyPagingItems()
     var showTryOnDialog by remember { mutableStateOf(false) }
 
     val suggestedSearches = listOf(
@@ -78,6 +85,24 @@ fun SearchScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
+            // Offline State Banner
+            if (!isOnline) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "You are currently offline. Displaying cached results.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             AuraSearchBar(
                 query = query,
                 onQueryChange = { viewModel.searchPins(it) },
@@ -86,53 +111,106 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            when (val state = searchState) {
-                is SearchUiState.Idle -> {
-                    // Show suggested searches when no search query has been typed yet
-                    Text("Suggested Searches", style = MaterialTheme.typography.titleMedium)
+            if (query.isBlank()) {
+                // Show Suggested & Recent Searches
+                if (recentSearches.isNotEmpty()) {
+                    Text("Recent Searches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        suggestedSearches.forEach { suggestion ->
+                        recentSearches.forEach { search ->
                             SuggestionChip(
-                                onClick = { viewModel.searchPins(suggestion) },
-                                label = { Text(suggestion) }
+                                onClick = { viewModel.searchPins(search) },
+                                label = { Text(search) }
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
-                is SearchUiState.Loading -> {
-                    AuraLoadingIndicator()
-                }
-                is SearchUiState.Error -> {
-                    Text("Search error: ${state.message}", color = MaterialTheme.colorScheme.error)
-                }
-                is SearchUiState.Success -> {
-                    if (state.results.isEmpty()) {
-                        AuraEmptyState(
-                            title = "No Outfits Found",
-                            description = "We couldn't find any matches for \"$query\". Try search alternatives."
+
+                Text("Suggested Searches", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    suggestedSearches.forEach { suggestion ->
+                        SuggestionChip(
+                            onClick = { viewModel.searchPins(suggestion) },
+                            label = { Text(suggestion) }
                         )
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(state.results) { outfit ->
+                    }
+                }
+            } else {
+                // Show Paged Search Results
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(lazyPagingItems.itemCount) { index ->
+                            val outfit = lazyPagingItems[index]
+                            if (outfit != null) {
                                 AuraCard(
                                     title = outfit.title,
                                     brand = outfit.brand,
                                     imageUrl = outfit.imageUrl,
-                                    isSaved = state.savedOutfitIds.contains(outfit.id),
+                                    isSaved = false, // Keep UI clean
                                     onSaveToggle = {
-                                        viewModel.toggleSaveOutfit(outfit, state.savedOutfitIds.contains(outfit.id))
+                                        viewModel.toggleSaveOutfit(outfit, false)
                                     },
                                     onClick = { onNavigateToDetail(outfit.id) },
                                     onTryOnClick = { showTryOnDialog = true }
+                                )
+                            }
+                        }
+
+                        // Append Loading State handler inside grid
+                        if (lazyPagingItems.loadState.append is LoadState.Loading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AuraLoadingIndicator(modifier = Modifier.size(40.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    // Main loading handler
+                    when (val refreshState = lazyPagingItems.loadState.refresh) {
+                        is LoadState.Loading -> {
+                            AuraLoadingIndicator()
+                        }
+                        is LoadState.Error -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Error: ${refreshState.error.localizedMessage}",
+                                    color = MaterialTheme.colorScheme.error,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = { lazyPagingItems.retry() }) {
+                                    Text("Retry")
+                                }
+                            }
+                        }
+                        else -> {
+                            if (lazyPagingItems.itemCount == 0) {
+                                AuraEmptyState(
+                                    title = "No Outfits Found",
+                                    description = "We couldn't find any matches for \"$query\". Try search alternatives."
                                 )
                             }
                         }

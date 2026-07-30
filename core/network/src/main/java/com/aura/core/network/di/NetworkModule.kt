@@ -1,5 +1,6 @@
 package com.aura.core.network.di
 
+import com.aura.core.network.api.AuraBackendApi
 import com.aura.core.network.api.PinterestApi
 import com.aura.core.network.api.ShoppingApi
 import dagger.Module
@@ -12,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -30,10 +32,14 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
         return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor(loggingInterceptor)
             .build()
     }
 
@@ -58,5 +64,11 @@ object NetworkModule {
     @Singleton
     fun provideShoppingApi(retrofit: Retrofit): ShoppingApi {
         return retrofit.create(ShoppingApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuraBackendApi(retrofit: Retrofit): AuraBackendApi {
+        return retrofit.create(AuraBackendApi::class.java)
     }
 }
