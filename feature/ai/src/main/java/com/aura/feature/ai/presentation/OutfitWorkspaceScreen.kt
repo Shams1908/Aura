@@ -1,17 +1,11 @@
 package com.aura.feature.ai.presentation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,27 +13,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,16 +34,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.aura.feature.ai.domain.DetectedClothingItem
-import com.aura.feature.ai.presentation.components.ShimmerPlaceholder
+import com.aura.core.designsystem.components.AuraButton
+import com.aura.core.designsystem.components.AuraButtonType
+import com.aura.core.designsystem.components.AuraCard
+import com.aura.core.designsystem.components.AuraCardVariant
+import com.aura.core.designsystem.components.AuraEmptyState
+import com.aura.core.designsystem.components.AuraErrorCard
+import com.aura.core.designsystem.components.AuraShimmer
+import com.aura.core.designsystem.components.AuraSectionTitle
+import com.aura.core.designsystem.components.AuraTopBar
+import com.aura.core.designsystem.components.AuraUploadCard
+import com.aura.feature.ai.domain.model.WorkspaceAction
 
 private val mockOutfitImages = listOf(
     "https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600",
@@ -76,12 +62,15 @@ fun OutfitWorkspaceScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogTitle by remember { mutableStateOf("") }
-    var dialogText by remember { mutableStateOf("") }
     var imageIndex by remember { mutableStateOf(0) }
 
     Scaffold(
+        topBar = {
+            AuraTopBar(
+                title = "Outfit Workspace",
+                onNavigationClick = onNavigateBack
+            )
+        },
         modifier = modifier
     ) { paddingValues ->
         when (val state = uiState) {
@@ -93,8 +82,12 @@ fun OutfitWorkspaceScreen(
                 )
             }
             is OutfitWorkspaceUiState.Error -> {
-                EmptyOutfitWorkspace(
-                    onRetry = { viewModel.loadWorkspace() },
+                AuraEmptyState(
+                    title = "Failed to Load Workspace",
+                    description = state.message,
+                    icon = Icons.Default.Info,
+                    actionText = "Retry",
+                    onActionClick = { viewModel.loadWorkspace() },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
@@ -110,28 +103,21 @@ fun OutfitWorkspaceScreen(
                         .padding(paddingValues)
                         .padding(horizontal = 16.dp)
                 ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Upload an outfit to begin AI analysis.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Header
-                    Column {
-                        Text(
-                            text = "Outfit Workspace",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Prepare an outfit for AI analysis",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Section 1: Upload Frame
-                    UploadCard(
+                    // SECTION 1: Upload Card
+                    AuraUploadCard(
                         selectedImageUri = state.selectedImageUri,
                         isProcessing = state.isProcessing,
+                        title = "Upload Outfit",
+                        description = "Supports high-resolution JPG or PNG",
                         onUploadClick = {
                             val nextImage = mockOutfitImages[imageIndex]
                             imageIndex = (imageIndex + 1) % mockOutfitImages.size
@@ -146,17 +132,29 @@ fun OutfitWorkspaceScreen(
                             viewModel.removeImage()
                         }
                     )
+                    
+                    if (state.selectedImageUri != null && state.filename != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Text(
+                                text = "Filename: ${state.filename}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Dimensions: ${state.dimensions}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Section 2: Detected Clothing
+                    // SECTION 2: Detected Clothing
                     if (state.selectedImageUri != null) {
-                        Text(
-                            text = "Detected Clothing",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
+                        AuraSectionTitle(title = "Detected Clothing")
+                        
                         if (state.isProcessing && state.detectedItems.isEmpty()) {
                             Row(
                                 modifier = Modifier
@@ -165,153 +163,252 @@ fun OutfitWorkspaceScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "Analyzing garments...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                AuraShimmer(modifier = Modifier.size(120.dp, 28.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                AuraShimmer(modifier = Modifier.size(100.dp, 28.dp))
                             }
                         } else {
                             @OptIn(ExperimentalLayoutApi::class)
                             FlowRow(
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                state.detectedItems.forEach { item ->
-                                    DetectedItemChip(item = item)
+                                state.detectedItems.forEach { garment ->
+                                    com.aura.core.designsystem.components.AuraChip(
+                                        text = garment.name,
+                                        selected = true,
+                                        onClick = {}
+                                    )
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // AI Analysis results banner if available
-                    if (state.analysisResult != null) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                     Icon(
-                                         imageVector = Icons.Default.Star,
-                                         contentDescription = "AI result",
-                                         tint = MaterialTheme.colorScheme.primary
-                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "AI Stylist Feedback",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = state.analysisResult,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(
-                                    onClick = { viewModel.clearAnalysis() },
-                                    modifier = Modifier.align(Alignment.End)
-                                ) {
-                                    Text("Dismiss")
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    // Section 3: AI Actions
-                    Text(
-                        text = "AI Actions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
+                    // SECTION 3: AI Workspace action cards
+                    AuraSectionTitle(title = "AI Workspace")
+                    
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            ActionCard(
-                                        title = "Analyze Outfit",
-                                        description = "Receive AI styling insights.",
-                                        icon = Icons.Default.Star,
-                                        onClick = {
-                                            if (state.selectedImageUri == null) {
-                                                dialogTitle = "Analyze Outfit"
-                                                dialogText = "Please upload an outfit photo first."
-                                                showDialog = true
-                                            } else {
-                                                viewModel.runOutfitAnalysis()
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f)
+                            AuraCard(
+                                variant = AuraCardVariant.Elevated,
+                                onClick = { viewModel.executeAction(WorkspaceAction.ANALYZE) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
                                     )
-                                    ActionCard(
-                                        title = "Virtual Try-On",
-                                        description = "Preview this outfit on yourself.",
-                                        icon = Icons.Default.Person,
-                                        onClick = {
-                                            dialogTitle = "Virtual Try-On"
-                                            dialogText = "Generative Virtual Try-On simulation will fit these garments onto your avatar profile."
-                                            showDialog = true
-                                        },
-                                        modifier = Modifier.weight(1f)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Analyze Outfit",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Understand colors, balance and style.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
+                            
+                            AuraCard(
+                                variant = AuraCardVariant.Elevated,
+                                onClick = { viewModel.executeAction(WorkspaceAction.TRY_ON) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Virtual Try-On",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "See yourself wearing this outfit.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
                         }
-
+                        
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            ActionCard(
-                                title = "Find Similar",
-                                description = "Search visually similar clothing.",
-                                icon = Icons.Default.Search,
-                                onClick = {
-                                    dialogTitle = "Find Similar"
-                                    dialogText = "Visual search is scouring online collections for alternative matches of these items."
-                                    showDialog = true
-                                },
+                            AuraCard(
+                                variant = AuraCardVariant.Elevated,
+                                onClick = { viewModel.executeAction(WorkspaceAction.FIND_SIMILAR) },
                                 modifier = Modifier.weight(1f)
-                            )
-                            ActionCard(
-                                title = "Save Outfit",
-                                description = "Save to your collection.",
-                                icon = Icons.Default.Favorite,
-                                onClick = {
-                                    dialogTitle = "Save Outfit"
-                                    dialogText = "Outfit configuration has been saved to your offline collection tracker."
-                                    showDialog = true
-                                },
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Find Similar",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Search visually similar clothing.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
+                            
+                            AuraCard(
+                                variant = AuraCardVariant.Elevated,
+                                onClick = { viewModel.executeAction(WorkspaceAction.SAVE) },
                                 modifier = Modifier.weight(1f)
-                            )
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Save Workspace",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Store this outfit for later.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Section 4: Tips Card
+                    // SECTION 4: AI Preview
+                    if (state.detectedStyle != null) {
+                        AuraSectionTitle(title = "AI Preview")
+                        AuraCard(
+                            variant = AuraCardVariant.Gradient,
+                            gradientColors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "AI ANALYSIS STATUS",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Detected Style",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Text(
+                                        text = state.detectedStyle.styleName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Confidence",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Text(
+                                        text = "${(state.detectedStyle.confidence * 100).toInt()}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Main Palette",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Text(
+                                        text = state.detectedStyle.mainPalette.joinToString(", "),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Occasion",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Text(
+                                        text = state.detectedStyle.occasion,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    // SECTION 5: Tips
                     if (state.tips.isNotEmpty()) {
-                        Text(
-                            text = "Onboarding Tips",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        state.tips.forEach { tip ->
-                            TipsCard(tip = tip)
-                            Spacer(modifier = Modifier.height(8.dp))
+                        AuraSectionTitle(title = "Tips")
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.tips.forEach { tip ->
+                                AuraInfoCard(tip = tip)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(32.dp))
@@ -320,14 +417,16 @@ fun OutfitWorkspaceScreen(
         }
     }
 
-    if (showDialog) {
+    // Info Message overlay feedback
+    val currentState = uiState as? OutfitWorkspaceUiState.Success
+    if (currentState?.infoMessage != null) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(dialogTitle) },
-            text = { Text(dialogText) },
+            onDismissRequest = { viewModel.dismissInfo() },
+            title = { Text("Workspace Notification") },
+            text = { Text(currentState.infoMessage) },
             confirmButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Close")
+                TextButton(onClick = { viewModel.dismissInfo() }) {
+                    Text("OK")
                 }
             }
         )
@@ -335,267 +434,21 @@ fun OutfitWorkspaceScreen(
 }
 
 @Composable
-fun UploadCard(
-    selectedImageUri: String?,
-    isProcessing: Boolean,
-    onUploadClick: () -> Unit,
-    onReplaceClick: () -> Unit,
-    onRemoveClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        if (selectedImageUri == null) {
-            // Empty view
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 36.dp, horizontal = 24.dp)
-                    .clickable { onUploadClick() },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Upload Icon",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Upload Outfit",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Select an outfit image to preview and parse detected apparel.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = onUploadClick,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Upload"
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Image")
-                }
-            }
-        } else {
-            // Populated view
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1.2f)
-                ) {
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = "Preview Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    if (isProcessing) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.4f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color.White)
-                        }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onReplaceClick,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Replace"
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Replace")
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    TextButton(
-                        onClick = onRemoveClick,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove"
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Remove")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DetectedItemChip(
-    item: DetectedClothingItem,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .padding(end = 8.dp, bottom = 8.dp)
-            .background(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "${(item.confidence * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ActionCard(
-    title: String,
-    description: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .height(130.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TipsCard(
+fun AuraInfoCard(
     tip: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-        ),
+    AuraCard(
+        variant = AuraCardVariant.Filled,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Info,
-                contentDescription = "Tip",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
@@ -616,70 +469,18 @@ fun LoadingOutfitWorkspace(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        ShimmerPlaceholder(modifier = Modifier.size(150.dp, 28.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-        ShimmerPlaceholder(modifier = Modifier.size(220.dp, 16.dp))
-        Spacer(modifier = Modifier.height(20.dp))
-        ShimmerPlaceholder(modifier = Modifier.fillMaxWidth().height(180.dp))
-        Spacer(modifier = Modifier.height(24.dp))
-        ShimmerPlaceholder(modifier = Modifier.size(100.dp, 20.dp))
-        Spacer(modifier = Modifier.height(12.dp))
+        AuraShimmer(modifier = Modifier.size(180.dp, 28.dp))
+        AuraShimmer(modifier = Modifier.size(260.dp, 16.dp))
+        AuraShimmer(modifier = Modifier.fillMaxWidth().height(180.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ShimmerPlaceholder(modifier = Modifier.weight(1f).height(130.dp))
-            ShimmerPlaceholder(modifier = Modifier.weight(1f).height(130.dp))
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            ShimmerPlaceholder(modifier = Modifier.weight(1f).height(130.dp))
-            ShimmerPlaceholder(modifier = Modifier.weight(1f).height(130.dp))
-        }
-    }
-}
-
-@Composable
-fun EmptyOutfitWorkspace(
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = "Empty State",
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-            modifier = Modifier.size(72.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Workspace Failed to Load",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "We could not construct the workspace components. Tap retry to load again.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onRetry) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Retry")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Retry")
+            AuraShimmer(modifier = Modifier.weight(1f).height(120.dp))
+            AuraShimmer(modifier = Modifier.weight(1f).height(120.dp))
         }
     }
 }
