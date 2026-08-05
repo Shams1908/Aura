@@ -11,7 +11,6 @@ import com.aura.core.database.entity.TrendingOutfitEntity
 import com.aura.core.database.entity.ViewedOutfitEntity
 import com.aura.core.common.network.NetworkMonitor
 import com.aura.core.network.api.AuraBackendApi
-import com.aura.core.network.model.toDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow

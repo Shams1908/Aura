@@ -3,7 +3,6 @@ package com.aura.core.common.data
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.aura.core.network.api.AuraBackendApi
-import com.aura.core.network.model.toDomain
 
 class OutfitPagingSource(
     private val auraBackendApi: AuraBackendApi,

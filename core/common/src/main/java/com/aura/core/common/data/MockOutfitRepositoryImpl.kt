@@ -1,5 +1,8 @@
 package com.aura.core.common.data
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -232,7 +235,7 @@ class MockOutfitRepositoryImpl @Inject constructor() : OutfitRepository {
         )
     )
 
-    override fun getTrendingOutfits(): Flow<List<OutfitModel>> = flow {
+    override fun getTrendingOutfits(forceRefresh: Boolean): Flow<List<OutfitModel>> = flow {
         delay(300) // Simulate mild network delay
         emit(mockOutfits.take(8))
     }
@@ -261,5 +264,49 @@ class MockOutfitRepositoryImpl @Inject constructor() : OutfitRepository {
     override fun getOutfitDetails(id: String): Flow<OutfitModel?> = flow {
         delay(200)
         emit(mockOutfits.find { it.id == id })
+    }
+
+    override fun searchOutfitsPaged(query: String): Flow<PagingData<OutfitModel>> {
+        return Pager(
+            config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+            pagingSourceFactory = {
+                object : androidx.paging.PagingSource<Int, OutfitModel>() {
+                    override fun getRefreshKey(state: androidx.paging.PagingState<Int, OutfitModel>): Int? = null
+                    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, OutfitModel> {
+                        val filtered = mockOutfits.filter {
+                            query.isBlank() ||
+                            it.title.contains(query, ignoreCase = true) ||
+                            it.brand.contains(query, ignoreCase = true)
+                        }
+                        return LoadResult.Page(
+                            data = filtered,
+                            prevKey = null,
+                            nextKey = null
+                        )
+                    }
+                }
+            }
+        ).flow
+    }
+
+    override fun getSimilarOutfits(id: String): Flow<List<OutfitModel>> = flow {
+        delay(200)
+        emit(mockOutfits.shuffled().take(4))
+    }
+
+    override fun getRecentlyViewedOutfits(): Flow<List<OutfitModel>> = flow {
+        emit(mockOutfits.take(3))
+    }
+
+    override suspend fun addOutfitToViewedHistory(outfit: OutfitModel) {
+        // No-op for mock
+    }
+
+    override fun getRecentSearches(): Flow<List<String>> = flow {
+        emit(listOf("Denim Jacket", "Boots", "Zara", "Suede"))
+    }
+
+    override suspend fun addSearchQueryToHistory(query: String) {
+        // No-op for mock
     }
 }

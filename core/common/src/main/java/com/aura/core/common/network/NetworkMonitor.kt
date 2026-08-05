@@ -10,6 +10,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.flowOn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,6 +56,3 @@ class LiveNetworkMonitor @Inject constructor(
     .flowOn(kotlinx.coroutines.Dispatchers.IO)
     .conflate()
 }
-
-// Add simple flowOn import
-import kotlinx.coroutines.flow.flowOn

@@ -1,6 +1,5 @@
 package com.aura.core.network.model
 
-import com.aura.core.common.data.OutfitModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -24,16 +23,3 @@ data class OutfitListResponse(
     val total: Int
 )
 
-fun OutfitDto.toDomain(): OutfitModel {
-    return OutfitModel(
-        id = this.id,
-        title = this.title,
-        brand = this.brand,
-        description = this.description,
-        imageUrl = this.imageUrl,
-        category = this.category,
-        color = this.color,
-        tags = this.tags,
-        price = this.price
-    )
-}

@@ -85,7 +85,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     // Image loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.coil.compose)
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
