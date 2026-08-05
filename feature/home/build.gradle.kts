@@ -50,6 +50,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:designsystem"))
     
+    implementation(libs.coil.compose)
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     

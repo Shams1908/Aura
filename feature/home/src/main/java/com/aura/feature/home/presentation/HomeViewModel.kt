@@ -27,6 +27,7 @@ sealed interface HomeUiState {
     data class Success(
         val trending: List<OutfitModel>,
         val recommended: List<OutfitModel>,
+        val recentTryOns: List<OutfitModel> = emptyList(),
         val savedOutfitIds: Set<String> = emptySet(),
         val categories: List<String> = listOf("All", "Summer Korean", "Oversized", "Business Casual", "Vintage")
     ) : HomeUiState
@@ -80,11 +81,14 @@ class HomeViewModel @Inject constructor(
                     
                     outfitRepository.getTrendingOutfits().collect { trends ->
                         outfitRepository.getRecommendedOutfits().collect { recs ->
-                            _homeState.value = HomeUiState.Success(
-                                trending = trends,
-                                recommended = recs,
-                                savedOutfitIds = savedIds
-                            )
+                            outfitRepository.getRecentlyViewedOutfits().collect { recent ->
+                                _homeState.value = HomeUiState.Success(
+                                    trending = trends,
+                                    recommended = recs,
+                                    recentTryOns = recent,
+                                    savedOutfitIds = savedIds
+                                )
+                            }
                         }
                     }
                 }
