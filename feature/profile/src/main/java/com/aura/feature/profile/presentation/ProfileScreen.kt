@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,6 +51,7 @@ import com.aura.core.designsystem.components.AuraLoadingIndicator
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToUserPhotos: () -> Unit,
     viewModel: ProfileViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -162,6 +164,12 @@ fun ProfileScreen(
                                         onCheckedChange = { darkThemeEnabled = it }
                                     )
                                 }
+                            )
+                            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                            ListItem(
+                                headlineContent = { Text("My Photos") },
+                                leadingContent = { Icon(Icons.Default.Person, contentDescription = null) },
+                                modifier = Modifier.clickable { onNavigateToUserPhotos() }
                             )
                             Divider(modifier = Modifier.padding(horizontal = 16.dp))
                             ListItem(

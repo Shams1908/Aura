@@ -58,7 +58,11 @@ private val mockOutfitImages = listOf(
 fun OutfitWorkspaceScreen(
     viewModel: OutfitWorkspaceViewModel,
     modifier: Modifier = Modifier,
-    onNavigateBack: (() -> Unit)? = null
+    onNavigateBack: (() -> Unit)? = null,
+    onNavigateToUserPhotos: () -> Unit = {},
+    onNavigateToAnalysis: () -> Unit = {},
+    onNavigateToTryOn: () -> Unit = {},
+    onNavigateToSimilarProducts: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
@@ -196,7 +200,7 @@ fun OutfitWorkspaceScreen(
                         ) {
                             AuraCard(
                                 variant = AuraCardVariant.Elevated,
-                                onClick = { viewModel.executeAction(WorkspaceAction.ANALYZE) },
+                                onClick = onNavigateToAnalysis,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -224,7 +228,7 @@ fun OutfitWorkspaceScreen(
                             
                             AuraCard(
                                 variant = AuraCardVariant.Elevated,
-                                onClick = { viewModel.executeAction(WorkspaceAction.TRY_ON) },
+                                onClick = onNavigateToTryOn,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -257,7 +261,7 @@ fun OutfitWorkspaceScreen(
                         ) {
                             AuraCard(
                                 variant = AuraCardVariant.Elevated,
-                                onClick = { viewModel.executeAction(WorkspaceAction.FIND_SIMILAR) },
+                                onClick = onNavigateToSimilarProducts,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -410,6 +414,15 @@ fun OutfitWorkspaceScreen(
                                 AuraInfoCard(tip = tip)
                             }
                         }
+                    }
+                    
+                    if (state.selectedImageUri != null) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        AuraButton(
+                            text = "Continue to Photo Manager",
+                            type = AuraButtonType.Primary,
+                            onClick = onNavigateToUserPhotos
+                        )
                     }
                     Spacer(modifier = Modifier.height(32.dp))
                 }

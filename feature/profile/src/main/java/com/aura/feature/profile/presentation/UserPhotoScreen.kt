@@ -64,7 +64,8 @@ import com.aura.feature.profile.domain.model.UserPhoto
 fun UserPhotoScreen(
     viewModel: UserPhotoViewModel,
     modifier: Modifier = Modifier,
-    onNavigateBack: (() -> Unit)? = null
+    onNavigateBack: (() -> Unit)? = null,
+    onNavigateToAnalysis: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -311,6 +312,14 @@ fun UserPhotoScreen(
                                 }
                             }
                         }
+                    }
+                    if (defaultPhoto != null) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        AuraButton(
+                            text = "Continue to Analysis",
+                            type = AuraButtonType.Primary,
+                            onClick = onNavigateToAnalysis
+                        )
                     }
                     Spacer(modifier = Modifier.height(32.dp))
                 }

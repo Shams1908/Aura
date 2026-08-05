@@ -57,16 +57,17 @@ private data class QuickActionItem(
 fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToWorkspace: (String?) -> Unit,
+    onNavigateToUserPhotos: () -> Unit,
+    onNavigateToAnalysis: () -> Unit,
+    onNavigateToTryOn: () -> Unit,
+    onNavigateToSaved: () -> Unit,
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
     val homeState by viewModel.homeState.collectAsState()
     
-    var showTryOnDialog by remember { mutableStateOf(false) }
-    var showFeatureDialog by remember { mutableStateOf(false) }
-    var dialogTitle by remember { mutableStateOf("") }
-    var dialogText by remember { mutableStateOf("") }
-
     val quickActions = remember {
         listOf(
             QuickActionItem(
@@ -119,11 +120,7 @@ fun HomeScreen(
                     HomeHeader(
                         username = "Fashionista",
                         profileImageUrl = null,
-                        onProfileClick = {
-                            dialogTitle = "Profile settings"
-                            dialogText = "Profile management is coming soon in Aura Studio."
-                            showFeatureDialog = true
-                        }
+                        onProfileClick = onNavigateToProfile
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -140,33 +137,23 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         UploadOutfitCard(
-                            onClick = {
-                                dialogTitle = "Upload Outfit"
-                                dialogText = "Upload outfit feature will parse and extract individual garments from any input photo."
-                                showFeatureDialog = true
-                            },
+                            onClick = { onNavigateToWorkspace(null) },
                             modifier = Modifier.weight(1f)
                         )
                         UploadPhotoCard(
-                            onClick = {
-                                dialogTitle = "Upload Photo"
-                                dialogText = "Take a photo to construct a 3D digital model of yourself for virtual fittings."
-                                showFeatureDialog = true
-                            },
+                            onClick = onNavigateToUserPhotos,
                             modifier = Modifier.weight(1f)
                         )
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 4. Feature Card
+                    // 4. Feature Card (Featured Banner with sample data)
                     FeatureCard(
                         title = "Chic Summer Editorial",
                         subtitle = "Curated AI outfits for your weekend style",
                         imageUrl = "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600",
                         onClick = {
-                            dialogTitle = "Editorial Trend"
-                            dialogText = "This style recommendation is generated based on your aesthetic profile and real-time trends."
-                            showFeatureDialog = true
+                            onNavigateToWorkspace("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600")
                         }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
@@ -183,9 +170,11 @@ fun HomeScreen(
                                 icon = action.icon,
                                 description = action.description,
                                 onClick = {
-                                    dialogTitle = action.title
-                                    dialogText = "The ${action.title} tool is being integrated with our generative AI service."
-                                    showFeatureDialog = true
+                                    when (action.title) {
+                                        "AI Stylist" -> onNavigateToAnalysis()
+                                        "Virtual Closet" -> onNavigateToSaved()
+                                        "Body Analyzer" -> onNavigateToTryOn()
+                                    }
                                 },
                                 containerColor = action.color
                             )
@@ -211,7 +200,7 @@ fun HomeScreen(
                                     viewModel.toggleSaveOutfit(outfit, state.savedOutfitIds.contains(outfit.id))
                                 },
                                 onClick = { onNavigateToDetail(outfit.id) },
-                                onTryOn = { showTryOnDialog = true }
+                                onTryOn = onNavigateToTryOn
                             )
                         }
                     }
@@ -237,31 +226,5 @@ fun HomeScreen(
                 }
             }
         }
-    }
-
-    if (showTryOnDialog) {
-        AlertDialog(
-            onDismissRequest = { showTryOnDialog = false },
-            title = { Text("AI Virtual Try-On") },
-            text = { Text("Generating fitting simulation... Stay tuned for complete Phase 2 try-on details!") },
-            confirmButton = {
-                TextButton(onClick = { showTryOnDialog = false }) {
-                    Text("Got It")
-                }
-            }
-        )
-    }
-
-    if (showFeatureDialog) {
-        AlertDialog(
-            onDismissRequest = { showFeatureDialog = false },
-            title = { Text(dialogTitle) },
-            text = { Text(dialogText) },
-            confirmButton = {
-                TextButton(onClick = { showFeatureDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
     }
 }

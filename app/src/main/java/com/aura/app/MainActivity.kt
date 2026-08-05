@@ -37,10 +37,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.aura.core.designsystem.theme.AuraTheme
 import com.aura.core.security.TokenStorage
 import com.aura.feature.auth.presentation.AuthViewModel
@@ -54,6 +56,10 @@ import com.aura.feature.home.presentation.SearchScreen
 import com.aura.feature.profile.presentation.ProfileScreen
 import com.aura.feature.profile.presentation.ProfileViewModel
 import com.aura.feature.profile.presentation.SavedScreen
+import com.aura.feature.profile.presentation.UserPhotoScreen
+import com.aura.feature.profile.presentation.UserPhotoViewModel
+import com.aura.feature.ai.presentation.OutfitWorkspaceScreen
+import com.aura.feature.ai.presentation.OutfitWorkspaceViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import javax.inject.Inject
@@ -130,6 +136,23 @@ fun AuraBottomNavigationBar(
     }
 }
 
+object AuraDestinations {
+    const val SPLASH = "splash"
+    const val LOGIN = "login"
+    const val SIGNUP = "signup"
+    const val HOME = "home"
+    const val SEARCH = "search"
+    const val DETAIL = "detail/{outfitId}"
+    const val SAVED = "saved"
+    const val PROFILE = "profile"
+    const val WORKSPACE = "workspace"
+    const val USER_PHOTOS = "user_photos"
+    const val ANALYSIS = "analysis"
+    const val TRY_ON = "try_on"
+    const val SIMILAR_PRODUCTS = "similar_products"
+    const val SETTINGS = "settings"
+}
+
 @Composable
 fun AuraNavHost(
     navController: NavHostController,
@@ -138,68 +161,81 @@ fun AuraNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "splash",
+        startDestination = AuraDestinations.SPLASH,
         modifier = modifier
     ) {
-        composable("splash") {
+        composable(AuraDestinations.SPLASH) {
             SplashScreen(
                 onSplashComplete = {
                     val hasToken = tokenStorage.getAccessToken() != null
                     if (hasToken) {
-                        navController.navigate("home") {
-                            popUpTo("splash") { inclusive = true }
+                        navController.navigate(AuraDestinations.HOME) {
+                            popUpTo(AuraDestinations.SPLASH) { inclusive = true }
                         }
                     } else {
-                        navController.navigate("login") {
-                            popUpTo("splash") { inclusive = true }
+                        navController.navigate(AuraDestinations.LOGIN) {
+                            popUpTo(AuraDestinations.SPLASH) { inclusive = true }
                         }
                     }
                 }
             )
         }
 
-        composable("login") {
+        composable(AuraDestinations.LOGIN) {
             val authViewModel = hiltViewModel<AuthViewModel>()
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
+                    navController.navigate(AuraDestinations.HOME) {
+                        popUpTo(AuraDestinations.LOGIN) { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {
-                    navController.navigate("signup")
+                    navController.navigate(AuraDestinations.SIGNUP)
                 },
                 viewModel = authViewModel
             )
         }
 
-        composable("signup") {
+        composable(AuraDestinations.SIGNUP) {
             val authViewModel = hiltViewModel<AuthViewModel>()
             SignUpScreen(
                 onSignUpSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("signup") { inclusive = true }
+                    navController.navigate(AuraDestinations.HOME) {
+                        popUpTo(AuraDestinations.SIGNUP) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
-                    navController.navigate("login") {
-                        popUpTo("signup") { inclusive = true }
+                    navController.navigate(AuraDestinations.LOGIN) {
+                        popUpTo(AuraDestinations.SIGNUP) { inclusive = true }
                     }
                 },
                 viewModel = authViewModel
             )
         }
 
-        composable("home") {
+        composable(AuraDestinations.HOME) {
             val homeViewModel = hiltViewModel<HomeViewModel>()
             HomeScreen(
-                onNavigateToSearch = { navController.navigate("search") },
+                onNavigateToSearch = { navController.navigate(AuraDestinations.SEARCH) },
                 onNavigateToDetail = { id -> navController.navigate("detail/$id") },
+                onNavigateToProfile = { navController.navigate(AuraDestinations.PROFILE) },
+                onNavigateToWorkspace = { imageUri ->
+                    val route = if (imageUri != null) {
+                        "workspace?imageUri=$imageUri"
+                    } else {
+                        AuraDestinations.WORKSPACE
+                    }
+                    navController.navigate(route)
+                },
+                onNavigateToUserPhotos = { navController.navigate(AuraDestinations.USER_PHOTOS) },
+                onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) },
+                onNavigateToTryOn = { navController.navigate(AuraDestinations.TRY_ON) },
+                onNavigateToSaved = { navController.navigate(AuraDestinations.SAVED) },
                 viewModel = homeViewModel
             )
         }
 
-        composable("search") {
+        composable(AuraDestinations.SEARCH) {
             val homeViewModel = hiltViewModel<HomeViewModel>()
             SearchScreen(
                 onNavigateBack = { navController.popBackStack() },
@@ -208,7 +244,7 @@ fun AuraNavHost(
             )
         }
 
-        composable("detail/{outfitId}") { backStackEntry ->
+        composable(AuraDestinations.DETAIL) { backStackEntry ->
             val outfitId = backStackEntry.arguments?.getString("outfitId") ?: ""
             val detailViewModel = hiltViewModel<OutfitDetailViewModel>()
             OutfitDetailScreen(
@@ -219,7 +255,7 @@ fun AuraNavHost(
             )
         }
 
-        composable("saved") {
+        composable(AuraDestinations.SAVED) {
             val profileViewModel = hiltViewModel<ProfileViewModel>()
             SavedScreen(
                 onNavigateToDetail = { id -> navController.navigate("detail/$id") },
@@ -227,18 +263,75 @@ fun AuraNavHost(
             )
         }
 
-        composable("profile") {
+        composable(AuraDestinations.PROFILE) {
             val profileViewModel = hiltViewModel<ProfileViewModel>()
             val authViewModel = hiltViewModel<AuthViewModel>()
             ProfileScreen(
                 onLogout = {
                     authViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
+                    navController.navigate(AuraDestinations.LOGIN) {
+                        popUpTo(AuraDestinations.HOME) { inclusive = true }
                     }
+                },
+                onNavigateToUserPhotos = {
+                    navController.navigate(AuraDestinations.USER_PHOTOS)
                 },
                 viewModel = profileViewModel
             )
+        }
+
+        composable(
+            route = "workspace?imageUri={imageUri}",
+            arguments = listOf(
+                navArgument("imageUri") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val imageUri = backStackEntry.arguments?.getString("imageUri")
+            val workspaceViewModel = hiltViewModel<OutfitWorkspaceViewModel>()
+            
+            LaunchedEffect(imageUri) {
+                if (imageUri != null) {
+                    workspaceViewModel.selectImage(imageUri)
+                }
+            }
+            
+            OutfitWorkspaceScreen(
+                viewModel = workspaceViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToUserPhotos = { navController.navigate(AuraDestinations.USER_PHOTOS) },
+                onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) },
+                onNavigateToTryOn = { navController.navigate(AuraDestinations.TRY_ON) },
+                onNavigateToSimilarProducts = { navController.navigate(AuraDestinations.SIMILAR_PRODUCTS) }
+            )
+        }
+
+        composable(AuraDestinations.USER_PHOTOS) {
+            val userPhotoViewModel = hiltViewModel<UserPhotoViewModel>()
+            UserPhotoScreen(
+                viewModel = userPhotoViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) }
+            )
+        }
+
+        composable(AuraDestinations.ANALYSIS) {
+            AnalysisPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(AuraDestinations.TRY_ON) {
+            TryOnPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(AuraDestinations.SIMILAR_PRODUCTS) {
+            SimilarProductsPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        composable(AuraDestinations.SETTINGS) {
+            SettingsPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }
