@@ -60,6 +60,8 @@ import com.aura.feature.profile.presentation.UserPhotoScreen
 import com.aura.feature.profile.presentation.UserPhotoViewModel
 import com.aura.feature.ai.presentation.OutfitWorkspaceScreen
 import com.aura.feature.ai.presentation.OutfitWorkspaceViewModel
+import com.aura.feature.camera.presentation.AuraStudioScreen
+import com.aura.feature.camera.presentation.StudioViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import javax.inject.Inject
@@ -323,7 +325,15 @@ fun AuraNavHost(
         }
 
         composable(AuraDestinations.TRY_ON) {
-            TryOnPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
+            val studioViewModel = hiltViewModel<StudioViewModel>()
+            AuraStudioScreen(
+                viewModel = studioViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onPhotoSelected = { uri ->
+                    // Handle captured photo selection - e.g. navigate back or process it
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(AuraDestinations.SIMILAR_PRODUCTS) {
