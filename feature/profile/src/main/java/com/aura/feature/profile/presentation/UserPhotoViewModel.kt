@@ -15,6 +15,10 @@ import javax.inject.Inject
  * ViewModel coordinating logic and repository bindings for the User Photo Manager feature.
  */
 @HiltViewModel
+@Deprecated(
+    message = "Aura no longer uses profile photos. Migrate workflows to use OutfitSession and SessionManager instead.",
+    level = DeprecationLevel.WARNING
+)
 class UserPhotoViewModel @Inject constructor(
     private val repository: UserPhotoRepository
 ) : ViewModel() {

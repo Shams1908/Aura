@@ -6,6 +6,10 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Interface contract defining CRUD operations for user photos.
  */
+@Deprecated(
+    message = "Aura no longer uses profile photos. Migrate workflows to use OutfitSession and SessionManager instead.",
+    level = DeprecationLevel.WARNING
+)
 interface UserPhotoRepository {
     
     /**

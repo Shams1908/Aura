@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     
     implementation(libs.hilt.android)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     kapt(libs.hilt.compiler)
     
     testImplementation("junit:junit:4.13.2")

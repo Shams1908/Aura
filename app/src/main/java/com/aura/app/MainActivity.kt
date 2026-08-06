@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -65,12 +66,19 @@ import com.aura.feature.camera.presentation.StudioViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import javax.inject.Inject
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.aura.core.common.session.SessionManager
+import com.aura.core.common.session.OutfitSessionId
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var tokenStorage: TokenStorage
+
+    @Inject
+    lateinit var sessionManager: SessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +104,7 @@ class MainActivity : ComponentActivity() {
                     AuraNavHost(
                         navController = navController,
                         tokenStorage = tokenStorage,
+                        sessionManager = sessionManager,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -148,9 +157,15 @@ object AuraDestinations {
     const val SAVED = "saved"
     const val PROFILE = "profile"
     const val WORKSPACE = "workspace"
+    
+    @Deprecated("Legacy profile photo path. Workflows are migrated to OutfitSession.", ReplaceWith("AuraDestinations.TRY_ON"))
     const val USER_PHOTOS = "user_photos"
+    
     const val ANALYSIS = "analysis"
+    
+    @Deprecated("Legacy camera path. Workflows are migrated to session-driven try_on?sessionId={sessionId}.", ReplaceWith("try_on?sessionId={sessionId}"))
     const val TRY_ON = "try_on"
+    
     const val SIMILAR_PRODUCTS = "similar_products"
     const val SETTINGS = "settings"
 }
@@ -159,8 +174,10 @@ object AuraDestinations {
 fun AuraNavHost(
     navController: NavHostController,
     tokenStorage: TokenStorage,
+    sessionManager: SessionManager,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
     NavHost(
         navController = navController,
         startDestination = AuraDestinations.SPLASH,
@@ -222,16 +239,40 @@ fun AuraNavHost(
                 onNavigateToDetail = { id -> navController.navigate("detail/$id") },
                 onNavigateToProfile = { navController.navigate(AuraDestinations.PROFILE) },
                 onNavigateToWorkspace = { imageUri ->
-                    val route = if (imageUri != null) {
-                        "workspace?imageUri=$imageUri"
-                    } else {
-                        AuraDestinations.WORKSPACE
+                    coroutineScope.launch {
+                        val session = sessionManager.createNewSession()
+                        if (imageUri != null) {
+                            sessionManager.attachOutfit(
+                                outfitUri = imageUri,
+                                metadata = com.aura.core.common.data.OutfitModel(
+                                    id = System.currentTimeMillis().toString(),
+                                    title = "Workspace Outfit",
+                                    brand = "Workspace",
+                                    description = "Visual fit analysis item",
+                                    imageUrl = imageUri,
+                                    category = "Tops",
+                                    color = "Default",
+                                    tags = listOf("Workspace"),
+                                    price = 0.0
+                                )
+                            )
+                        }
+                        navController.navigate("workspace?sessionId=${session.sessionId.value}")
                     }
-                    navController.navigate(route)
                 },
-                onNavigateToUserPhotos = { navController.navigate(AuraDestinations.USER_PHOTOS) },
+                onNavigateToUserPhotos = {
+                    coroutineScope.launch {
+                        val session = sessionManager.createNewSession()
+                        navController.navigate("try_on?sessionId=${session.sessionId.value}")
+                    }
+                },
                 onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) },
-                onNavigateToTryOn = { navController.navigate(AuraDestinations.TRY_ON) },
+                onNavigateToTryOn = {
+                    coroutineScope.launch {
+                        val session = sessionManager.createNewSession()
+                        navController.navigate("try_on?sessionId=${session.sessionId.value}")
+                    }
+                },
                 onNavigateToSaved = { navController.navigate(AuraDestinations.SAVED) },
                 viewModel = homeViewModel
             )
@@ -276,9 +317,56 @@ fun AuraNavHost(
                     }
                 },
                 onNavigateToUserPhotos = {
-                    navController.navigate(AuraDestinations.USER_PHOTOS)
+                    coroutineScope.launch {
+                        val session = sessionManager.createNewSession()
+                        navController.navigate("try_on?sessionId=${session.sessionId.value}")
+                    }
                 },
                 viewModel = profileViewModel
+            )
+        }
+
+        composable(
+            route = "workspace?sessionId={sessionId}",
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId")
+            val workspaceViewModel = hiltViewModel<OutfitWorkspaceViewModel>()
+            
+            LaunchedEffect(sessionId) {
+                if (sessionId != null) {
+                    workspaceViewModel.loadSession(OutfitSessionId(sessionId))
+                }
+            }
+            
+            OutfitWorkspaceScreen(
+                viewModel = workspaceViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToUserPhotos = {
+                    coroutineScope.launch {
+                        val session = sessionManager.createNewSession()
+                        navController.navigate("try_on?sessionId=${session.sessionId.value}")
+                    }
+                },
+                onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) },
+                onNavigateToTryOn = {
+                    val activeSession = sessionManager.activeSession.value
+                    if (activeSession != null) {
+                        navController.navigate("try_on?sessionId=${activeSession.sessionId.value}")
+                    } else {
+                        coroutineScope.launch {
+                            val session = sessionManager.createNewSession()
+                            navController.navigate("try_on?sessionId=${session.sessionId.value}")
+                        }
+                    }
+                },
+                onNavigateToSimilarProducts = { navController.navigate(AuraDestinations.SIMILAR_PRODUCTS) }
             )
         }
 
@@ -293,22 +381,28 @@ fun AuraNavHost(
             )
         ) { backStackEntry ->
             val imageUri = backStackEntry.arguments?.getString("imageUri")
-            val workspaceViewModel = hiltViewModel<OutfitWorkspaceViewModel>()
-            
             LaunchedEffect(imageUri) {
+                val session = sessionManager.createNewSession()
                 if (imageUri != null) {
-                    workspaceViewModel.selectImage(imageUri)
+                    sessionManager.attachOutfit(
+                        outfitUri = imageUri,
+                        metadata = com.aura.core.common.data.OutfitModel(
+                            id = System.currentTimeMillis().toString(),
+                            title = "Legacy Outfit",
+                            brand = "Legacy",
+                            description = "Visual fit analysis item",
+                            imageUrl = imageUri,
+                            category = "Clothing",
+                            color = "Default",
+                            tags = listOf("Legacy"),
+                            price = 0.0
+                        )
+                    )
+                }
+                navController.navigate("workspace?sessionId=${session.sessionId.value}") {
+                    popUpTo("workspace?imageUri={imageUri}") { inclusive = true }
                 }
             }
-            
-            OutfitWorkspaceScreen(
-                viewModel = workspaceViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToUserPhotos = { navController.navigate(AuraDestinations.USER_PHOTOS) },
-                onNavigateToAnalysis = { navController.navigate(AuraDestinations.ANALYSIS) },
-                onNavigateToTryOn = { navController.navigate(AuraDestinations.TRY_ON) },
-                onNavigateToSimilarProducts = { navController.navigate(AuraDestinations.SIMILAR_PRODUCTS) }
-            )
         }
 
         composable(AuraDestinations.USER_PHOTOS) {
@@ -324,16 +418,41 @@ fun AuraNavHost(
             AnalysisPlaceholderScreen(onNavigateBack = { navController.popBackStack() })
         }
 
-        composable(AuraDestinations.TRY_ON) {
+        composable(
+            route = "try_on?sessionId={sessionId}",
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId")
             val studioViewModel = hiltViewModel<StudioViewModel>()
+            
+            LaunchedEffect(sessionId) {
+                if (sessionId != null) {
+                    studioViewModel.loadSession(OutfitSessionId(sessionId))
+                }
+            }
+            
             AuraStudioScreen(
                 viewModel = studioViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onPhotoSelected = { uri ->
-                    // Handle captured photo selection - e.g. navigate back or process it
                     navController.popBackStack()
                 }
             )
+        }
+
+        composable(AuraDestinations.TRY_ON) {
+            LaunchedEffect(Unit) {
+                val session = sessionManager.createNewSession()
+                navController.navigate("try_on?sessionId=${session.sessionId.value}") {
+                    popUpTo(AuraDestinations.TRY_ON) { inclusive = true }
+                }
+            }
         }
 
         composable(AuraDestinations.SIMILAR_PRODUCTS) {

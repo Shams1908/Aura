@@ -43,6 +43,7 @@ import com.aura.feature.home.presentation.components.RecentTryOnCard
 import com.aura.feature.home.presentation.components.SearchBar
 import com.aura.feature.home.presentation.components.SectionTitle
 import com.aura.feature.home.presentation.components.StyleCard
+import com.aura.feature.home.presentation.components.AuraStudioCard
 import com.aura.feature.home.presentation.components.UploadOutfitCard
 import com.aura.feature.home.presentation.components.UploadPhotoCard
 
@@ -140,8 +141,8 @@ fun HomeScreen(
                             onClick = { onNavigateToWorkspace(null) },
                             modifier = Modifier.weight(1f)
                         )
-                        UploadPhotoCard(
-                            onClick = onNavigateToUserPhotos,
+                        AuraStudioCard(
+                            onClick = onNavigateToTryOn,
                             modifier = Modifier.weight(1f)
                         )
                     }

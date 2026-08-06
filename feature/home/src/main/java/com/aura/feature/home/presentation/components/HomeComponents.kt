@@ -314,6 +314,7 @@ fun UploadOutfitCard(
     }
 }
 
+@Deprecated("Use AuraStudioCard instead for direct camera experiences", ReplaceWith("AuraStudioCard(onClick, modifier)"))
 @Composable
 fun UploadPhotoCard(
     onClick: () -> Unit,
@@ -355,6 +356,56 @@ fun UploadPhotoCard(
                     )
                     Text(
                         text = "Try on virtual fits",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AuraStudioCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .height(110.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(Color(0xFF00E5FF), Color(0xFF00E676))
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Aura Studio",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+                Column {
+                    Text(
+                        text = "Aura Studio",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Start Live Try-On",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.8f)
                     )

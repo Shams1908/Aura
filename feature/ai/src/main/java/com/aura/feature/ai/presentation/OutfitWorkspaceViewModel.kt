@@ -11,13 +11,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.aura.core.common.session.SessionManager
+import com.aura.core.common.session.OutfitSessionId
 
 /**
  * ViewModel for the Outfit Workspace feature managing states and action triggers.
  */
 @HiltViewModel
 class OutfitWorkspaceViewModel @Inject constructor(
-    private val repository: FakeOutfitWorkspaceRepository
+    private val repository: FakeOutfitWorkspaceRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<OutfitWorkspaceUiState>(OutfitWorkspaceUiState.Loading)
@@ -25,6 +28,28 @@ class OutfitWorkspaceViewModel @Inject constructor(
 
     init {
         loadWorkspace()
+        observeActiveSession()
+    }
+
+    private fun observeActiveSession() {
+        viewModelScope.launch {
+            sessionManager.activeSession.collect { session ->
+                if (session != null) {
+                    val uri = session.referenceOutfitUri
+                    if (uri != null) {
+                        selectImageInternal(uri)
+                    } else {
+                        removeImageInternal()
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadSession(sessionId: OutfitSessionId) {
+        viewModelScope.launch {
+            sessionManager.loadSession(sessionId)
+        }
     }
 
     /**
@@ -40,8 +65,29 @@ class OutfitWorkspaceViewModel @Inject constructor(
      * Actions when selecting/uploading a mock image.
      */
     fun selectImage(uri: String) {
+        viewModelScope.launch {
+            sessionManager.attachOutfit(
+                outfitUri = uri,
+                metadata = com.aura.core.common.data.OutfitModel(
+                    id = System.currentTimeMillis().toString(),
+                    title = "Workspace Outfit",
+                    brand = "Workspace",
+                    description = "Visual fit analysis item",
+                    imageUrl = uri,
+                    category = "Clothing",
+                    color = "Default",
+                    tags = listOf("Workspace"),
+                    price = 0.0
+                )
+            )
+        }
+        selectImageInternal(uri)
+    }
+
+    private fun selectImageInternal(uri: String) {
         val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
-        
+        if (currentState.selectedImageUri == uri) return
+
         val mockFilename = when {
             uri.contains("1556821840") -> "casual_hoodie_outfit.jpg"
             uri.contains("1515886657") -> "model_summer_wear.png"
@@ -88,7 +134,15 @@ class OutfitWorkspaceViewModel @Inject constructor(
      * Clears selected workspace picture.
      */
     fun removeImage() {
+        viewModelScope.launch {
+            sessionManager.completeSession()
+        }
+        removeImageInternal()
+    }
+
+    private fun removeImageInternal() {
         val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
+        if (currentState.selectedImageUri == null) return
         _uiState.value = currentState.copy(
             selectedImageUri = null,
             isProcessing = false,

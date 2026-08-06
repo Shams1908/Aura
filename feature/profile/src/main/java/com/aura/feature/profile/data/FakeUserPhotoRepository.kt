@@ -19,6 +19,10 @@ import javax.inject.Singleton
  * Implementation of Fake repository managing mock state in memory.
  */
 @Singleton
+@Deprecated(
+    message = "Aura no longer uses profile photos. Migrate workflows to use OutfitSession and SessionManager instead.",
+    level = DeprecationLevel.WARNING
+)
 class FakeUserPhotoRepository @Inject constructor() : UserPhotoRepository {
 
     private val photosState = MutableStateFlow<List<UserPhoto>>(

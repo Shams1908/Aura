@@ -59,6 +59,10 @@ import com.aura.core.designsystem.components.AuraTopBar
 import com.aura.core.designsystem.components.AuraUploadCard
 import com.aura.feature.profile.domain.model.UserPhoto
 
+@Deprecated(
+    message = "Aura no longer uses profile photos. Migrate workflows to use OutfitSession and SessionManager instead.",
+    level = DeprecationLevel.WARNING
+)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserPhotoScreen(
