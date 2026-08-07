@@ -2,6 +2,10 @@ package com.aura.feature.ai.di
 
 import com.aura.feature.ai.domain.GarmentParser
 import com.aura.feature.ai.domain.MockGarmentParserImpl
+import com.aura.feature.ai.inference.InferenceEngine
+import com.aura.feature.ai.inference.DefaultInferenceEngine
+import com.aura.feature.ai.repository.FashionVisionRepository
+import com.aura.feature.ai.repository.FashionVisionRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -17,4 +21,16 @@ abstract class AiModule {
     abstract fun bindGarmentParser(
         garmentParserImpl: MockGarmentParserImpl
     ): GarmentParser
+
+    @Binds
+    @Singleton
+    abstract fun bindInferenceEngine(
+        defaultInferenceEngine: DefaultInferenceEngine
+    ): InferenceEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindFashionVisionRepository(
+        fashionVisionRepositoryImpl: FashionVisionRepositoryImpl
+    ): FashionVisionRepository
 }

@@ -17,6 +17,7 @@ interface VisionPipeline {
     val events: SharedFlow<PipelineEvent>
     fun start(scope: CoroutineScope)
     fun stop()
+    suspend fun processFrame(frame: VisionFrame): PipelineResult
 }
 
 @Singleton
@@ -70,5 +71,20 @@ class VisionPipelineImpl @Inject constructor(
         _state.value = PipelineState.Completed
         _state.value = PipelineState.Idle
         _events.tryEmit(PipelineEvent.Finished)
+    }
+
+    override suspend fun processFrame(frame: VisionFrame): PipelineResult {
+        try {
+            _state.value = PipelineState.Processing
+            val result = orchestrator.process(frame)
+            _results.emit(result)
+            _events.emit(PipelineEvent.FrameProcessed(result))
+            _state.value = PipelineState.ReceivingFrames
+            return result
+        } catch (e: Exception) {
+            _state.value = PipelineState.Error(e)
+            _events.emit(PipelineEvent.ErrorOccurred(e))
+            throw e
+        }
     }
 }

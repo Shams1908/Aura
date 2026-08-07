@@ -52,6 +52,12 @@ import com.aura.feature.camera.presentation.components.StudioStatusCard
 import com.aura.feature.camera.presentation.components.StudioTopBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.aura.feature.camera.presentation.overlay.OverlayRenderer
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.Text
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 
 /**
  * Main viewport container for the Aura Studio camera experience.
@@ -67,7 +73,8 @@ fun AuraStudioScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
 
-    val controller = remember { CameraController(context, viewModel.frameProvider) }
+    val controller = remember { CameraController(context, viewModel.frameStreamManager) }
+    val streamStats by viewModel.streamStats.collectAsState()
     var previewViewReference by remember { mutableStateOf<androidx.camera.view.PreviewView?>(null) }
 
     // Launcher for requesting camera permission
@@ -255,6 +262,58 @@ fun AuraStudioScreen(
                             Toast.makeText(context, "Calibrating fit map for Try-On simulation...", Toast.LENGTH_LONG).show()
                         }
                     )
+                }
+
+                if (com.aura.feature.camera.BuildConfig.DEBUG) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 16.dp, top = 160.dp)
+                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "STREAM PERFORMANCE",
+                                color = Color(0xFF00E5FF),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Camera FPS: ${"%.1f".format(streamStats.inputFps)}",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "Process FPS: ${"%.1f".format(streamStats.processingFps)}",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "Dropped: ${streamStats.droppedFramesCount}",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "Latency: ${streamStats.pipelineLatencyMs} ms",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "State: ${streamStats.processingState}",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
                 }
             }
 

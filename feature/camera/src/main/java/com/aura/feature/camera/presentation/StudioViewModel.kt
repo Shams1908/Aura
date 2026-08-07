@@ -13,7 +13,8 @@ import javax.inject.Inject
 import com.aura.core.common.session.SessionManager
 import com.aura.core.common.session.OutfitSessionId
 import com.aura.core.common.session.SessionLifecycleStage
-import com.aura.core.vision.provider.FrameProvider
+import com.aura.core.vision.streaming.FrameStreamManager
+import com.aura.core.vision.streaming.FrameStats
 import com.aura.core.vision.pipeline.VisionPipeline
 
 /**
@@ -38,16 +39,19 @@ sealed interface StudioEvent {
 @HiltViewModel
 class StudioViewModel @Inject constructor(
     private val sessionManager: SessionManager,
-    val frameProvider: FrameProvider,
+    val frameStreamManager: FrameStreamManager,
     private val visionPipeline: VisionPipeline
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StudioUiState())
     val uiState: StateFlow<StudioUiState> = _uiState.asStateFlow()
 
+    val streamStats: StateFlow<FrameStats> = frameStreamManager.stats
+
     init {
         android.util.Log.d("AURA_DEBUG", "StudioViewModel initialized")
         visionPipeline.start(viewModelScope)
+        frameStreamManager.start(viewModelScope)
         // Collect active session from SessionManager and sync relevant UI properties
         viewModelScope.launch {
             sessionManager.activeSession.collect { session ->
@@ -197,5 +201,6 @@ class StudioViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         visionPipeline.stop()
+        frameStreamManager.stop()
     }
 }

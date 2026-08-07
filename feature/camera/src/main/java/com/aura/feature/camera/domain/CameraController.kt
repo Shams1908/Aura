@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import com.aura.core.vision.provider.FrameProvider
+import com.aura.core.vision.streaming.FrameStreamManager
 import com.aura.core.vision.model.VisionFrame
 import com.aura.core.vision.model.FrameMetadata
 
@@ -28,7 +28,7 @@ import com.aura.core.vision.model.FrameMetadata
  */
 class CameraController(
     private val context: Context,
-    private val frameProvider: FrameProvider
+    private val frameStreamManager: FrameStreamManager
 ) {
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
@@ -95,7 +95,7 @@ class CameraController(
                             timestampMs = imageProxy.imageInfo.timestamp,
                             lensFacing = lensFacing
                         )
-                        frameProvider.emitFrame(VisionFrame(bitmap, metadata))
+                        frameStreamManager.submitFrame(VisionFrame(bitmap, metadata))
                     } catch (e: Exception) {
                         Log.e("CameraController", "Error processing frame", e)
                     } finally {
