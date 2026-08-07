@@ -22,6 +22,7 @@ include(":core:network")
 include(":core:database")
 include(":core:security")
 include(":core:designsystem")
+include(":core:vision")
 
 // Feature Modules
 include(":feature:auth")

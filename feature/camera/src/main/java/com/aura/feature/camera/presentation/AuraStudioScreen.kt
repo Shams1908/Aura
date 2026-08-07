@@ -66,7 +66,7 @@ fun AuraStudioScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
 
-    val controller = remember { CameraController(context) }
+    val controller = remember { CameraController(context, viewModel.frameProvider) }
     var previewViewReference by remember { mutableStateOf<androidx.camera.view.PreviewView?>(null) }
 
     // Launcher for requesting camera permission
@@ -91,8 +91,11 @@ fun AuraStudioScreen(
         }
     }
 
+    android.util.Log.d("AURA_DEBUG", "AuraStudioScreen composed. uiState.hasPermission = ${uiState.hasPermission}, uiState.status = ${uiState.status}")
+
     // Check permission on screen entry
     LaunchedEffect(key1 = true) {
+        android.util.Log.d("AURA_DEBUG", "AuraStudioScreen LaunchedEffect(key1 = true) check permission executed")
         val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
         val isGranted = permissionCheck == PackageManager.PERMISSION_GRANTED
         viewModel.onEvent(StudioEvent.PermissionResult(isGranted))
@@ -117,17 +120,21 @@ fun AuraStudioScreen(
     }
 
     DisposableEffect(key1 = true) {
+        android.util.Log.d("AURA_DEBUG", "AuraStudioScreen Lifecycle: ENTERED composition")
         onDispose {
+            android.util.Log.d("AURA_DEBUG", "AuraStudioScreen Lifecycle: LEFT composition")
             controller.release()
         }
     }
 
     // Sync state settings to CameraController
     LaunchedEffect(uiState.isFlashEnabled) {
+        android.util.Log.d("AURA_DEBUG", "AuraStudioScreen LaunchedEffect(uiState.isFlashEnabled) executed: ${uiState.isFlashEnabled}")
         controller.toggleFlash(uiState.isFlashEnabled)
     }
 
     LaunchedEffect(uiState.zoomRatio) {
+        android.util.Log.d("AURA_DEBUG", "AuraStudioScreen LaunchedEffect(uiState.zoomRatio) executed: ${uiState.zoomRatio}")
         controller.setZoom(uiState.zoomRatio)
     }
 

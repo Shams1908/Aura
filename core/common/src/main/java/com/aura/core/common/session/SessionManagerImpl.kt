@@ -28,11 +28,14 @@ class SessionManagerImpl @Inject constructor(
     init {
         scope.launch {
             repository.getActiveSessionId().collectLatest { activeId ->
+                android.util.Log.d("AURA_DEBUG", "SessionManagerImpl active ID collected: $activeId")
                 if (activeId != null) {
                     repository.getSession(activeId).collectLatest { session ->
+                        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl active session collected: $session")
                         _activeSession.value = session
                     }
                 } else {
+                    android.util.Log.d("AURA_DEBUG", "SessionManagerImpl active session is null")
                     _activeSession.value = null
                 }
             }
@@ -41,6 +44,7 @@ class SessionManagerImpl @Inject constructor(
 
     override suspend fun createNewSession(): OutfitSession {
         val newId = OutfitSessionId(UUID.randomUUID().toString())
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.createNewSession: created session with ID = ${newId.value}")
         val session = OutfitSession(sessionId = newId)
         repository.saveSession(session)
         repository.setActiveSessionId(newId)
@@ -59,6 +63,7 @@ class SessionManagerImpl @Inject constructor(
     }
 
     override suspend fun transitionStage(newStage: SessionLifecycleStage) {
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.transitionStage: transitioning stage to $newStage")
         val current = _activeSession.value ?: return
         val updated = current.copy(
             stage = newStage,
@@ -113,10 +118,12 @@ class SessionManagerImpl @Inject constructor(
     }
 
     override suspend fun completeSession() {
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.completeSession called")
         repository.setActiveSessionId(null)
     }
 
     override suspend fun loadSession(sessionId: OutfitSessionId) {
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.loadSession: loading session ID = ${sessionId.value}")
         repository.setActiveSessionId(sessionId)
     }
 }

@@ -19,12 +19,16 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import com.aura.core.vision.provider.FrameProvider
+import com.aura.core.vision.model.VisionFrame
+import com.aura.core.vision.model.FrameMetadata
 
 /**
  * Controller class encapsulating all CameraX preview, capturing, zooming, and frame analyzing tasks.
  */
 class CameraController(
-    private val context: Context
+    private val context: Context,
+    private val frameProvider: FrameProvider
 ) {
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
@@ -82,8 +86,21 @@ class CameraController(
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build().also { analysis ->
                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                    // Stub analyzer interface ready for frame parsing
-                    imageProxy.close()
+                    try {
+                        val bitmap = imageProxy.toBitmap()
+                        val metadata = FrameMetadata(
+                            width = imageProxy.width,
+                            height = imageProxy.height,
+                            rotationDegrees = imageProxy.imageInfo.rotationDegrees,
+                            timestampMs = imageProxy.imageInfo.timestamp,
+                            lensFacing = lensFacing
+                        )
+                        frameProvider.emitFrame(VisionFrame(bitmap, metadata))
+                    } catch (e: Exception) {
+                        Log.e("CameraController", "Error processing frame", e)
+                    } finally {
+                        imageProxy.close()
+                    }
                 }
             }
 

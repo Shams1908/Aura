@@ -43,6 +43,7 @@ dependencies {
     implementation(project(":feature:ai"))
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:vision"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.coil.compose)
     
