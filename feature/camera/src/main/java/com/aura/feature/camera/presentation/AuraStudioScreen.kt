@@ -48,9 +48,10 @@ import com.aura.feature.camera.domain.CameraController
 import com.aura.feature.camera.presentation.components.CameraPreview
 import com.aura.feature.camera.presentation.components.StudioBottomSheet
 import com.aura.feature.camera.presentation.components.StudioControls
-import com.aura.feature.camera.presentation.components.StudioOverlay
 import com.aura.feature.camera.presentation.components.StudioStatusCard
 import com.aura.feature.camera.presentation.components.StudioTopBar
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.aura.feature.camera.presentation.overlay.OverlayRenderer
 
 /**
  * Main viewport container for the Aura Studio camera experience.
@@ -176,7 +177,7 @@ fun AuraStudioScreen(
                 )
 
                 // 2. Animated Center Alignment Guide Overlay
-                StudioOverlay()
+                OverlayRenderer(viewModel = hiltViewModel())
 
                 // 3. Floating UI elements (Top layout elements stack)
                 Column(
