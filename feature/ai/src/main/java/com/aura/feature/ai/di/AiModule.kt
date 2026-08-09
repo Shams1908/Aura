@@ -1,5 +1,7 @@
 package com.aura.feature.ai.di
 
+import com.aura.feature.ai.detector.YoloDetector
+import com.aura.feature.ai.detector.YoloDetectorImpl
 import com.aura.feature.ai.domain.GarmentParser
 import com.aura.feature.ai.domain.MockGarmentParserImpl
 import com.aura.feature.ai.inference.InferenceEngine
@@ -33,4 +35,10 @@ abstract class AiModule {
     abstract fun bindFashionVisionRepository(
         fashionVisionRepositoryImpl: FashionVisionRepositoryImpl
     ): FashionVisionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindYoloDetector(
+        yoloDetectorImpl: YoloDetectorImpl
+    ): YoloDetector
 }
