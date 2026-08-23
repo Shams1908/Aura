@@ -1,6 +1,9 @@
 package com.aura.core.common.session
 
 import com.aura.core.common.data.OutfitModel
+import com.aura.core.common.data.ReferenceImage
+import com.aura.core.common.data.ReferenceImageSource
+import com.aura.core.common.data.ReferenceImageMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,10 +56,20 @@ class SessionManagerImpl @Inject constructor(
 
     override suspend fun attachOutfit(outfitUri: String, metadata: OutfitModel) {
         val current = _activeSession.value ?: return
+        val refImg = ReferenceImage(
+            uri = outfitUri,
+            source = ReferenceImageSource.DEFAULT_GALLERY,
+            metadata = ReferenceImageMetadata(
+                title = metadata.title,
+                brand = metadata.brand,
+                category = metadata.category
+            )
+        )
         val updated = current.copy(
             stage = SessionLifecycleStage.OUTFIT_ATTACHED,
             referenceOutfitUri = outfitUri,
             referenceOutfitMetadata = metadata,
+            referenceImage = refImg,
             updatedTime = System.currentTimeMillis()
         )
         repository.saveSession(updated)

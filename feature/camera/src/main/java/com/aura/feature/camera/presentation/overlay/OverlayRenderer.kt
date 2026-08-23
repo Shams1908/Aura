@@ -35,7 +35,12 @@ fun OverlayRenderer(
                 if (!isDebugMode) {
                     element.id != "pose_skeleton" &&
                     element.id != "face_guide" &&
-                    element.id != "shoulder_guide"
+                    element.id != "shoulder_guide" &&
+                    element.id != "tracking_box" &&
+                    element.id != "style_score_bubble" &&
+                    element.id != "ai_status_bubble" &&
+                    element.id != "recommendation_bubble" &&
+                    !element.id.startsWith("garment_")
                 } else {
                     true
                 }

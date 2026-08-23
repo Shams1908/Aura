@@ -1,6 +1,7 @@
 package com.aura.core.common.session
 
 import com.aura.core.common.data.OutfitModel
+import com.aura.core.common.data.ReferenceImage
 import kotlinx.serialization.Serializable
 
 /**
@@ -63,6 +64,7 @@ data class OutfitSession(
     val stage: SessionLifecycleStage = SessionLifecycleStage.CREATED,
     val referenceOutfitUri: String? = null,
     val referenceOutfitMetadata: OutfitModel? = null,
+    val referenceImage: ReferenceImage? = null,
     
     // Workflow status descriptions
     val cameraState: String = "IDLE",
