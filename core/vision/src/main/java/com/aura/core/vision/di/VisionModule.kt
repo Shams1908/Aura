@@ -30,10 +30,10 @@ abstract class VisionModule {
         mockTrackingEngine: MockTrackingEngine
     ): TrackingEngine
 
-    @Binds
-    abstract fun bindPoseEstimator(
-        mockPoseEstimator: MockPoseEstimator
-    ): PoseEstimator
+//    @Binds
+//    abstract fun bindPoseEstimator(
+//        mockPoseEstimator: MockPoseEstimator
+//    ): PoseEstimator
 
     @Binds
     abstract fun bindGarmentSegmenter(

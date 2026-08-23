@@ -23,6 +23,144 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aura.core.vision.model.PoseResult
+
+fun transformCoordinates(
+    x_s: Float,
+    y_s: Float,
+    W_s: Float,
+    H_s: Float,
+    rotation: Int,
+    isFront: Boolean,
+    W_v: Float,
+    H_v: Float
+): Offset {
+    // 1. Rotate sensor coordinates to rotated coordinates
+    val (x_r, y_r) = when (rotation) {
+        90 -> Pair(H_s - y_s, x_s)
+        180 -> Pair(W_s - x_s, H_s - y_s)
+        270 -> Pair(y_s, W_s - x_s)
+        else -> Pair(x_s, y_s)
+    }
+
+    // Rotated dimensions
+    val W_r = if (rotation == 90 || rotation == 270) H_s else W_s
+    val H_r = if (rotation == 90 || rotation == 270) W_s else H_s
+
+    // 2. Scale and offset to match FILL_CENTER in view
+    val scaleX = W_v / W_r
+    val scaleY = H_v / H_r
+    val scale = maxOf(scaleX, scaleY)
+
+    val offsetX = (W_v - W_r * scale) / 2f
+    val offsetY = (H_v - H_r * scale) / 2f
+
+    val x_v = x_r * scale + offsetX
+    val y_v = y_r * scale + offsetY
+
+    // 3. Handle front camera mirroring
+    val finalX = if (isFront) W_v - x_v else x_v
+    val finalY = y_v
+
+    return Offset(finalX, finalY)
+}
+
+data class PoseSkeletonElement(
+    val pose: PoseResult,
+    override val id: String = "pose_skeleton",
+    override val layer: OverlayLayer = OverlayLayer.BODY,
+    override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
+    override val isVisible: Boolean = true
+) : OverlayElement {
+
+    @Composable
+    override fun Render(modifier: Modifier, animator: OverlayAnimator) {
+        Canvas(modifier = modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+
+            val landmarks = pose.landmarks
+            if (landmarks.isEmpty()) return@Canvas
+
+            // Map landmark points using transformCoordinates
+            val pointsMap = landmarks.associate { landmark ->
+                val screenOffset = transformCoordinates(
+                    x_s = landmark.x,
+                    y_s = landmark.y,
+                    W_s = pose.imageWidth.toFloat(),
+                    H_s = pose.imageHeight.toFloat(),
+                    rotation = pose.rotationDegrees,
+                    isFront = pose.isFrontCamera,
+                    W_v = width,
+                    H_v = height
+                )
+                landmark.id to screenOffset
+            }
+
+            // Extract needed points
+            val leftShoulder = pointsMap[11]
+            val rightShoulder = pointsMap[12]
+            val leftElbow = pointsMap[13]
+            val rightElbow = pointsMap[14]
+            val leftWrist = pointsMap[15]
+            val rightWrist = pointsMap[16]
+            val leftHip = pointsMap[23]
+            val rightHip = pointsMap[24]
+
+            val strokeWidth = 3.dp.toPx()
+
+            // 1. Torso Boundary
+            if (leftShoulder != null && rightShoulder != null && leftHip != null && rightHip != null) {
+                val torsoPath = Path().apply {
+                    moveTo(leftShoulder.x, leftShoulder.y)
+                    lineTo(rightShoulder.x, rightShoulder.y)
+                    lineTo(rightHip.x, rightHip.y)
+                    lineTo(leftHip.x, leftHip.y)
+                    close()
+                }
+                drawPath(
+                    path = torsoPath,
+                    color = style.primaryColor.copy(alpha = 0.2f)
+                )
+                drawPath(
+                    path = torsoPath,
+                    color = style.primaryColor,
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+
+            // 2. Arms
+            if (leftShoulder != null && leftElbow != null) {
+                drawLine(color = style.primaryColor, start = leftShoulder, end = leftElbow, strokeWidth = strokeWidth)
+            }
+            if (leftElbow != null && leftWrist != null) {
+                drawLine(color = style.primaryColor, start = leftElbow, end = leftWrist, strokeWidth = strokeWidth)
+            }
+            if (rightShoulder != null && rightElbow != null) {
+                drawLine(color = style.primaryColor, start = rightShoulder, end = rightElbow, strokeWidth = strokeWidth)
+            }
+            if (rightElbow != null && rightWrist != null) {
+                drawLine(color = style.primaryColor, start = rightElbow, end = rightWrist, strokeWidth = strokeWidth)
+            }
+
+            // 3. Joints (Draw glowing circles)
+            val jointsColor = Color.White
+            pointsMap.values.forEach { point ->
+                drawCircle(
+                    color = jointsColor,
+                    radius = 5.dp.toPx(),
+                    center = point
+                )
+                drawCircle(
+                    color = style.primaryColor,
+                    radius = 8.dp.toPx(),
+                    center = point,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
+        }
+    }
+}
 
 data class BodyOutlineElement(
     override val id: String = "body_outline",

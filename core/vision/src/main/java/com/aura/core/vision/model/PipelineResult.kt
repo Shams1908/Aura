@@ -9,7 +9,11 @@ data class TrackingResult(
 )
 
 data class PoseResult(
-    val landmarks: List<PoseLandmark>
+    val landmarks: List<PoseLandmark>,
+    val imageWidth: Int = 0,
+    val imageHeight: Int = 0,
+    val rotationDegrees: Int = 0,
+    val isFrontCamera: Boolean = false
 ) {
     data class PoseLandmark(val id: Int, val x: Float, val y: Float, val z: Float, val likelihood: Float)
 }

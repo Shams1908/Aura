@@ -1,5 +1,10 @@
 package com.aura.feature.camera.presentation
 
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.style.TextAlign
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -354,7 +359,10 @@ fun AuraStudioScreen(
                             AuraButton(
                                 text = "Confirm Fit Photo",
                                 type = AuraButtonType.Primary,
-                                onClick = { onPhotoSelected(uiState.capturedImageUri!!) }
+                                onClick = {
+                                    viewModel.confirmCalibrationPhoto(uiState.capturedImageUri!!)
+                                    viewModel.startVirtualTryOn()
+                                }
                             )
 
                             AuraButton(
@@ -364,6 +372,83 @@ fun AuraStudioScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // 6. Fullscreen Virtual Try-On Generation & Error Overlays
+            when (val vtoState = uiState.vtoState) {
+                is VirtualTryOnState.Generating -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF0F0F12))
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Aura AI generating your virtual try-on...",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Aligning posture and rendering 3D garments.",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                is VirtualTryOnState.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF0F0F12))
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Text(
+                                text = "Virtual Try-On Error",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = vtoState.errorMsg,
+                                color = Color.LightGray,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            AuraButton(
+                                text = "Back to Workspace",
+                                type = AuraButtonType.Primary,
+                                onClick = {
+                                    viewModel.resetVto()
+                                    onNavigateBack()
+                                }
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // Do nothing
                 }
             }
 

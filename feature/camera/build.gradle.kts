@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.guava)
+    implementation(libs.mlkit.pose.detection)
     
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)

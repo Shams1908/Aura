@@ -126,4 +126,14 @@ class SessionManagerImpl @Inject constructor(
         android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.loadSession: loading session ID = ${sessionId.value}")
         repository.setActiveSessionId(sessionId)
     }
+
+    override suspend fun updateCapturedUserPhoto(uri: String) {
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.updateCapturedUserPhoto: uri = $uri")
+        val current = _activeSession.value ?: return
+        val updated = current.copy(
+            capturedUserPhotoUri = uri,
+            updatedTime = System.currentTimeMillis()
+        )
+        repository.saveSession(updated)
+    }
 }

@@ -77,9 +77,9 @@ class OverlayRendererViewModel @Inject constructor(
         elements.add(FaceGuideElement())
         elements.add(ShoulderGuideElement())
 
-        // 2. Pose -> Body outline
-        if (result.pose != null) {
-            elements.add(BodyOutlineElement())
+        // 2. Pose -> Pose Skeleton
+        if (result.pose != null && result.pose!!.landmarks.isNotEmpty()) {
+            elements.add(PoseSkeletonElement(pose = result.pose!!))
         }
 
         // 3. Tracking -> Bounding box

@@ -79,5 +79,6 @@ data class OutfitSession(
     val segmentationResult: SegmentationResultPlaceholder? = null,
     val virtualTryOnResult: TryOnResultPlaceholder? = null,
     val styleAnalysisResult: StyleAnalysisResultPlaceholder? = null,
-    val recommendationResult: RecommendationResultPlaceholder? = null
+    val recommendationResult: RecommendationResultPlaceholder? = null,
+    val capturedUserPhotoUri: String? = null
 )

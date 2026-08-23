@@ -61,4 +61,9 @@ interface SessionManager {
      * Reloads and binds to an existing session workspace.
      */
     suspend fun loadSession(sessionId: OutfitSessionId)
+
+    /**
+     * Updates the captured user photo URI in the active session.
+     */
+    suspend fun updateCapturedUserPhoto(uri: String)
 }

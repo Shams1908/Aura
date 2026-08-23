@@ -16,6 +16,8 @@ import com.aura.core.common.session.SessionLifecycleStage
 import com.aura.core.vision.streaming.FrameStreamManager
 import com.aura.core.vision.streaming.FrameStats
 import com.aura.core.vision.pipeline.VisionPipeline
+import com.aura.feature.camera.domain.PoseDetectorEngine
+import com.aura.feature.camera.domain.BodyPoseResult
 
 /**
  * Event actions dispatched from the Aura Studio screen.
@@ -40,8 +42,11 @@ sealed interface StudioEvent {
 class StudioViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     val frameStreamManager: FrameStreamManager,
-    private val visionPipeline: VisionPipeline
+    private val visionPipeline: VisionPipeline,
+    val poseDetectorEngine: PoseDetectorEngine
 ) : ViewModel() {
+
+    val poseResult: StateFlow<BodyPoseResult?> = poseDetectorEngine.poseResult
 
     private val _uiState = MutableStateFlow(StudioUiState())
     val uiState: StateFlow<StudioUiState> = _uiState.asStateFlow()
@@ -132,26 +137,14 @@ class StudioViewModel @Inject constructor(
                 }
             }
             is StudioEvent.PhotoCaptured -> {
+                android.util.Log.d("AURA_VTO", "event=PHOTO_CAPTURED uri=${event.uri}")
                 _uiState.update {
                     it.copy(
                         capturedImageUri = event.uri
                     )
                 }
                 viewModelScope.launch {
-                    sessionManager.attachOutfit(
-                        outfitUri = event.uri.toString(),
-                        metadata = com.aura.core.common.data.OutfitModel(
-                            id = System.currentTimeMillis().toString(),
-                            title = "Captured Fit",
-                            brand = "Aura Studio",
-                            description = "Visual fit analysis item",
-                            imageUrl = event.uri.toString(),
-                            category = "Capture",
-                            color = "Multi",
-                            tags = listOf("Studio"),
-                            price = 0.0
-                        )
-                    )
+                    sessionManager.updateCapturedUserPhoto(event.uri.toString())
                     sessionManager.updateAnalysisStatus("READY")
                     sessionManager.transitionStage(SessionLifecycleStage.ANALYSIS_READY)
                 }
@@ -198,9 +191,60 @@ class StudioViewModel @Inject constructor(
         }
     }
 
+    fun confirmCalibrationPhoto(uri: Uri) {
+        android.util.Log.d("AURA_VTO", "event=PHOTO_CONFIRMED uri=$uri")
+        viewModelScope.launch {
+            sessionManager.updateCapturedUserPhoto(uri.toString())
+            sessionManager.transitionStage(SessionLifecycleStage.TRY_ON_READY)
+        }
+    }
+
+    fun startVirtualTryOn() {
+        android.util.Log.d("AURA_VTO", "event=GENERATION_STARTED")
+        _uiState.update { it.copy(vtoState = VirtualTryOnState.Generating) }
+        
+        viewModelScope.launch {
+            try {
+                sessionManager.updateTryOnStatus("GENERATING")
+                
+                // Simulate long-running AI try-on processing
+                kotlinx.coroutines.delay(2500)
+                
+                // VTO is not available yet, return clear error as required
+                val errorMsg = "Virtual Try-On processing is not available yet"
+                android.util.Log.e("AURA_VTO", "event=GENERATION_FAILED error=$errorMsg")
+                sessionManager.updateTryOnStatus("ERROR")
+                
+                _uiState.update { 
+                    it.copy(vtoState = VirtualTryOnState.Error(errorMsg)) 
+                }
+            } catch (e: Exception) {
+                val errorMsg = e.localizedMessage ?: "Unknown try-on error"
+                android.util.Log.e("AURA_VTO", "event=GENERATION_FAILED error=$errorMsg", e)
+                sessionManager.updateTryOnStatus("ERROR")
+                _uiState.update { 
+                    it.copy(vtoState = VirtualTryOnState.Error(errorMsg)) 
+                }
+            }
+        }
+    }
+
+    fun cancelVirtualTryOn() {
+        android.util.Log.d("AURA_VTO", "event=GENERATION_CANCELLED")
+        _uiState.update { it.copy(vtoState = VirtualTryOnState.Cancelled) }
+        viewModelScope.launch {
+            sessionManager.updateTryOnStatus("CANCELLED")
+        }
+    }
+
+    fun resetVto() {
+        _uiState.update { it.copy(vtoState = VirtualTryOnState.Idle) }
+    }
+
     override fun onCleared() {
         super.onCleared()
         visionPipeline.stop()
         frameStreamManager.stop()
+        poseDetectorEngine.close()
     }
 }

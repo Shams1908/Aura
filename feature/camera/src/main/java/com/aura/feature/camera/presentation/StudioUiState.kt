@@ -16,6 +16,7 @@ enum class StudioStatus {
  */
 data class StudioUiState(
     val status: StudioStatus = StudioStatus.CAMERA_READY,
+    val vtoState: VirtualTryOnState = VirtualTryOnState.Idle,
     val isFrontCamera: Boolean = false,
     val isFlashEnabled: Boolean = false,
     val zoomRatio: Float = 1.0f,
