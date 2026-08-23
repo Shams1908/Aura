@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.aura.core.vision.pipeline.VisionPipeline
 import com.aura.core.vision.model.PipelineState
 import com.aura.core.vision.model.PipelineResult
+import com.aura.core.vision.model.PoseResult
+import com.aura.feature.camera.domain.TorsoTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -20,6 +22,9 @@ class OverlayRendererViewModel @Inject constructor(
 ) : ViewModel() {
 
     val overlayState: StateFlow<OverlayState> = overlayManager.state
+
+    private val torsoTracker = TorsoTracker()
+    private var lastValidPose: PoseResult? = null
 
     init {
         // Observe pipeline state to show progress / base guides / status
@@ -77,9 +82,39 @@ class OverlayRendererViewModel @Inject constructor(
         elements.add(FaceGuideElement())
         elements.add(ShoulderGuideElement())
 
-        // 2. Pose -> Pose Skeleton
-        if (result.pose != null && result.pose!!.landmarks.isNotEmpty()) {
-            elements.add(PoseSkeletonElement(pose = result.pose!!))
+        // 2. Pose -> Pose Skeleton & Tracked Torso Box
+        val pose = result.pose
+        if (pose != null && pose.landmarks.isNotEmpty()) {
+            lastValidPose = pose
+            val anchors = torsoTracker.track(pose.landmarks, result.timestampMs)
+            elements.add(PoseSkeletonElement(pose = pose))
+            if (anchors.isTrackingActive) {
+                val transform = TrackedTransform(
+                    centerX = anchors.bounds.center.x,
+                    centerY = anchors.bounds.center.y,
+                    width = anchors.bounds.torsoWidth,
+                    height = anchors.bounds.torsoHeight,
+                    rotation = anchors.bounds.rotation,
+                    confidence = anchors.bounds.confidence,
+                    isTrackingActive = true
+                )
+                elements.add(TrackedTorsoBoxElement(transform = transform, pose = pose))
+            }
+        } else {
+            val anchors = torsoTracker.track(emptyList(), result.timestampMs)
+            val lastPose = lastValidPose
+            if (anchors.isTrackingActive && lastPose != null) {
+                val transform = TrackedTransform(
+                    centerX = anchors.bounds.center.x,
+                    centerY = anchors.bounds.center.y,
+                    width = anchors.bounds.torsoWidth,
+                    height = anchors.bounds.torsoHeight,
+                    rotation = anchors.bounds.rotation,
+                    confidence = anchors.bounds.confidence,
+                    isTrackingActive = true
+                )
+                elements.add(TrackedTorsoBoxElement(transform = transform, pose = lastPose))
+            }
         }
 
         // 3. Tracking -> Bounding box

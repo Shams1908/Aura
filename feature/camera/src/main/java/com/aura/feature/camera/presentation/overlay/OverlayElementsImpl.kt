@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aura.core.vision.model.PoseResult
+import com.aura.feature.camera.domain.GarmentAnchorPoints
 
 fun transformCoordinates(
     x_s: Float,
@@ -63,6 +64,48 @@ fun transformCoordinates(
     val finalY = y_v
 
     return Offset(finalX, finalY)
+}
+
+fun transformTrackedTransform(
+    raw: TrackedTransform,
+    pose: PoseResult,
+    viewWidth: Float,
+    viewHeight: Float
+): TrackedTransform {
+    val mappedCenter = transformCoordinates(
+        x_s = raw.centerX,
+        y_s = raw.centerY,
+        W_s = pose.imageWidth.toFloat(),
+        H_s = pose.imageHeight.toFloat(),
+        rotation = pose.rotationDegrees,
+        isFront = pose.isFrontCamera,
+        W_v = viewWidth,
+        H_v = viewHeight
+    )
+
+    val rotation = pose.rotationDegrees
+    val W_s = pose.imageWidth.toFloat()
+    val H_s = pose.imageHeight.toFloat()
+    val W_r = if (rotation == 90 || rotation == 270) H_s else W_s
+    val H_r = if (rotation == 90 || rotation == 270) W_s else H_s
+
+    val scaleX = viewWidth / W_r
+    val scaleY = viewHeight / H_r
+    val scale = maxOf(scaleX, scaleY)
+
+    val mappedWidth = raw.width * scale
+    val mappedHeight = raw.height * scale
+    val mappedRotation = if (pose.isFrontCamera) -raw.rotation else raw.rotation
+
+    return TrackedTransform(
+        centerX = mappedCenter.x,
+        centerY = mappedCenter.y,
+        width = mappedWidth,
+        height = mappedHeight,
+        rotation = mappedRotation,
+        confidence = raw.confidence,
+        isTrackingActive = raw.isTrackingActive
+    )
 }
 
 data class PoseSkeletonElement(
@@ -158,6 +201,145 @@ data class PoseSkeletonElement(
                     style = Stroke(width = 2.dp.toPx())
                 )
             }
+        }
+    }
+}
+
+data class TorsoGuideElement(
+    val anchorPoints: GarmentAnchorPoints,
+    val pose: PoseResult,
+    override val id: String = "torso_guide",
+    override val layer: OverlayLayer = OverlayLayer.GARMENT,
+    override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFFFFCC00)),
+    override val isVisible: Boolean = true
+) : OverlayElement {
+
+    @Composable
+    override fun Render(modifier: Modifier, animator: OverlayAnimator) {
+        if (!anchorPoints.isTrackingActive) return
+
+        Canvas(modifier = modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+
+            val bounds = anchorPoints.bounds
+
+            val transformedLeftShoulder = transformCoordinates(bounds.leftShoulder.x, bounds.leftShoulder.y, pose.imageWidth.toFloat(), pose.imageHeight.toFloat(), pose.rotationDegrees, pose.isFrontCamera, width, height)
+            val transformedRightShoulder = transformCoordinates(bounds.rightShoulder.x, bounds.rightShoulder.y, pose.imageWidth.toFloat(), pose.imageHeight.toFloat(), pose.rotationDegrees, pose.isFrontCamera, width, height)
+            val transformedLeftHip = transformCoordinates(bounds.leftHip.x, bounds.leftHip.y, pose.imageWidth.toFloat(), pose.imageHeight.toFloat(), pose.rotationDegrees, pose.isFrontCamera, width, height)
+            val transformedRightHip = transformCoordinates(bounds.rightHip.x, bounds.rightHip.y, pose.imageWidth.toFloat(), pose.imageHeight.toFloat(), pose.rotationDegrees, pose.isFrontCamera, width, height)
+            val transformedCenter = transformCoordinates(bounds.center.x, bounds.center.y, pose.imageWidth.toFloat(), pose.imageHeight.toFloat(), pose.rotationDegrees, pose.isFrontCamera, width, height)
+
+            val path = Path().apply {
+                moveTo(transformedLeftShoulder.x, transformedLeftShoulder.y)
+                lineTo(transformedRightShoulder.x, transformedRightShoulder.y)
+                lineTo(transformedRightHip.x, transformedRightHip.y)
+                lineTo(transformedLeftHip.x, transformedLeftHip.y)
+                close()
+            }
+
+            val opacity = if (bounds.confidence < 0.6f) 0.15f else 0.3f
+
+            drawPath(
+                path = path,
+                color = style.primaryColor.copy(alpha = opacity)
+            )
+
+            val strokeWidth = 3.dp.toPx()
+            drawPath(
+                path = path,
+                color = style.primaryColor,
+                style = Stroke(width = strokeWidth)
+            )
+
+            val crosshairSize = 15.dp.toPx()
+            drawLine(
+                color = style.primaryColor,
+                start = Offset(transformedCenter.x - crosshairSize, transformedCenter.y),
+                end = Offset(transformedCenter.x + crosshairSize, transformedCenter.y),
+                strokeWidth = 2.dp.toPx()
+            )
+            drawLine(
+                color = style.primaryColor,
+                start = Offset(transformedCenter.x, transformedCenter.y - crosshairSize),
+                end = Offset(transformedCenter.x, transformedCenter.y + crosshairSize),
+                strokeWidth = 2.dp.toPx()
+            )
+
+            val anchorColor = Color.White
+            drawCircle(color = anchorColor, radius = 5.dp.toPx(), center = transformedLeftShoulder)
+            drawCircle(color = anchorColor, radius = 5.dp.toPx(), center = transformedRightShoulder)
+            drawCircle(color = anchorColor, radius = 5.dp.toPx(), center = transformedLeftHip)
+            drawCircle(color = anchorColor, radius = 5.dp.toPx(), center = transformedRightHip)
+        }
+    }
+}
+
+data class TrackedTorsoBoxElement(
+    val transform: TrackedTransform,
+    val pose: PoseResult,
+    override val id: String = "tracked_torso_box",
+    override val layer: OverlayLayer = OverlayLayer.GARMENT,
+    override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
+    override val isVisible: Boolean = true
+) : OverlayElement {
+
+    @Composable
+    override fun Render(modifier: Modifier, animator: OverlayAnimator) {
+        if (!transform.isTrackingActive || transform.confidence < 0.5f) return
+
+        Canvas(modifier = modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+
+            val mapped = transformTrackedTransform(transform, pose, width, height)
+
+            val boxWidth = mapped.width
+            val boxHeight = mapped.height
+            val centerX = mapped.centerX
+            val centerY = mapped.centerY
+            val rotationDegrees = mapped.rotation
+
+            drawContext.canvas.save()
+            drawContext.transform.rotate(degrees = rotationDegrees, pivot = Offset(centerX, centerY))
+
+            val topLeft = Offset(centerX - boxWidth / 2f, centerY - boxHeight / 2f)
+            val strokeWidth = 2.dp.toPx()
+            val bracketLen = minOf(boxWidth, boxHeight) * 0.15f
+            val color = style.primaryColor.copy(alpha = 0.8f)
+
+            // Top-left
+            drawLine(color, topLeft, Offset(topLeft.x + bracketLen, topLeft.y), strokeWidth)
+            drawLine(color, topLeft, Offset(topLeft.x, topLeft.y + bracketLen), strokeWidth)
+
+            // Top-right
+            val topRight = Offset(topLeft.x + boxWidth, topLeft.y)
+            drawLine(color, topRight, Offset(topRight.x - bracketLen, topRight.y), strokeWidth)
+            drawLine(color, topRight, Offset(topRight.x, topRight.y + bracketLen), strokeWidth)
+
+            // Bottom-left
+            val bottomLeft = Offset(topLeft.x, topLeft.y + boxHeight)
+            drawLine(color, bottomLeft, Offset(bottomLeft.x + bracketLen, bottomLeft.y), strokeWidth)
+            drawLine(color, bottomLeft, Offset(bottomLeft.x, bottomLeft.y - bracketLen), strokeWidth)
+
+            // Bottom-right
+            val bottomRight = Offset(topLeft.x + boxWidth, topLeft.y + boxHeight)
+            drawLine(color, bottomRight, Offset(bottomRight.x - bracketLen, bottomRight.y), strokeWidth)
+            drawLine(color, bottomRight, Offset(bottomRight.x, bottomRight.y - bracketLen), strokeWidth)
+
+            // Crosshair
+            val crossSize = 10.dp.toPx()
+            drawLine(color, Offset(centerX - crossSize, centerY), Offset(centerX + crossSize, centerY), 1.5.dp.toPx())
+            drawLine(color, Offset(centerX, centerY - crossSize), Offset(centerX, centerY + crossSize), 1.5.dp.toPx())
+
+            // Semi-transparent center box fill
+            drawRect(
+                color = style.primaryColor.copy(alpha = 0.08f),
+                topLeft = topLeft,
+                size = Size(boxWidth, boxHeight)
+            )
+
+            drawContext.canvas.restore()
         }
     }
 }
