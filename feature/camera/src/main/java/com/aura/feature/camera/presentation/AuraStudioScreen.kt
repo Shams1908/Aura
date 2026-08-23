@@ -3,6 +3,7 @@ package com.aura.feature.camera.presentation
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextAlign
 import android.Manifest
@@ -20,13 +21,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -188,8 +195,8 @@ fun AuraStudioScreen(
                     }
                 )
 
-                // 2. Animated Center Alignment Guide Overlay
-                OverlayRenderer(viewModel = hiltViewModel())
+                // 2. Animated Center Alignment Guide Overlay (with debug toggle support)
+                OverlayRenderer(viewModel = hiltViewModel(), isDebugMode = uiState.isDebugMode)
 
                 // 3. Floating UI elements (Top layout elements stack)
                 Column(
@@ -201,75 +208,183 @@ fun AuraStudioScreen(
                     StudioTopBar(
                         isFlashEnabled = uiState.isFlashEnabled,
                         onFlashToggle = { enabled -> viewModel.onEvent(StudioEvent.ToggleFlash(enabled)) },
+                        isDebugMode = uiState.isDebugMode,
+                        onDebugToggle = { viewModel.onEvent(StudioEvent.ToggleDebugMode) },
                         onCloseClick = onNavigateBack,
                         onSettingsClick = {
                             Toast.makeText(context, "Calibrating Studio Settings...", Toast.LENGTH_SHORT).show()
                         }
                     )
 
-                    // Upper Status Card (Tap to cycle status mocks)
-                    StudioStatusCard(
-                        status = uiState.status,
-                        onStatusClick = {
-                            val nextStatus = when (uiState.status) {
-                                StudioStatus.CAMERA_READY -> StudioStatus.TRACKING_WAITING
-                                StudioStatus.TRACKING_WAITING -> StudioStatus.OUTFIT_LOADED
-                                StudioStatus.OUTFIT_LOADED -> StudioStatus.CAMERA_READY
+                    // Upper Status Card (Tap to cycle status mocks) - Rendered only in debug mode
+                    if (uiState.isDebugMode) {
+                        StudioStatusCard(
+                            status = uiState.status,
+                            onStatusClick = {
+                                val nextStatus = when (uiState.status) {
+                                    StudioStatus.CAMERA_READY -> StudioStatus.TRACKING_WAITING
+                                    StudioStatus.TRACKING_WAITING -> StudioStatus.OUTFIT_LOADED
+                                    StudioStatus.OUTFIT_LOADED -> StudioStatus.CAMERA_READY
+                                }
+                                viewModel.onEvent(StudioEvent.SetStatus(nextStatus))
                             }
-                            viewModel.onEvent(StudioEvent.SetStatus(nextStatus))
-                        }
-                    )
+                        )
+                    }
                 }
 
-                // 4. Bottom controls panel and bottom sheet stack
-                Column(
+                // 4. Compact Bottom Control Area (Minimalist overlay)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
-                    verticalArrangement = Arrangement.Bottom
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
                 ) {
-                    // Persistent Dynamic Bottom Sheet
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Floating Active Garment Pill (Selected Garment Indicator)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(!uiState.isBottomSheetExpanded))
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AsyncImage(
+                                    model = uiState.outfitThumbnailUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                )
+                                Text(
+                                    text = uiState.loadedOutfitName,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "• Info",
+                                    color = Color(0xFF00E5FF),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Floating Shutter / Action Controls Panel
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Gallery Thumbnail on Left
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                                    .clickable {
+                                        if (uiState.capturedImageUri != null) {
+                                            Toast.makeText(context, "Reviewing Captured Photo...", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Loading Gallery...", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (uiState.capturedImageUri != null) {
+                                    AsyncImage(
+                                        model = uiState.capturedImageUri,
+                                        contentDescription = "Gallery Thumbnail",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Info, // gallery fallback
+                                        contentDescription = "Gallery",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // Large Central Shutter Button (Capture)
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .border(BorderStroke(4.dp, Color.White), CircleShape)
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .clickable {
+                                        controller.capturePhoto(
+                                            onPhotoSaved = { uri -> viewModel.onEvent(StudioEvent.PhotoCaptured(uri)) },
+                                            onCaptureError = { ex -> viewModel.onEvent(StudioEvent.CaptureError(ex.localizedMessage ?: "Capture failed")) }
+                                        )
+                                    }
+                            )
+
+                            // Switch Camera Lens Button on Right
+                            IconButton(
+                                onClick = {
+                                    viewModel.onEvent(StudioEvent.SwitchCamera)
+                                    previewViewReference?.let {
+                                        controller.switchCamera(
+                                            lifecycleOwner = lifecycleOwner,
+                                            previewView = it,
+                                            onPhotoCaptured = { uri -> viewModel.onEvent(StudioEvent.PhotoCaptured(uri)) },
+                                            onError = { ex -> viewModel.onEvent(StudioEvent.CaptureError(ex.localizedMessage ?: "Capture failed")) }
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Switch Camera",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Expanded Details Bottom Sheet Overlay
+                AnimatedVisibility(
+                    visible = uiState.isBottomSheetExpanded,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
                     StudioBottomSheet(
                         uiState = uiState,
                         onExpandedToggle = { expanded -> viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(expanded)) }
                     )
-
-                    // Shutter / Action Controls Panel
-                    StudioControls(
-                        currentZoom = uiState.zoomRatio,
-                        onZoomChange = { ratio -> viewModel.onEvent(StudioEvent.SetZoom(ratio)) },
-                        onCaptureClick = {
-                            controller.capturePhoto(
-                                onPhotoSaved = { uri -> viewModel.onEvent(StudioEvent.PhotoCaptured(uri)) },
-                                onCaptureError = { ex -> viewModel.onEvent(StudioEvent.CaptureError(ex.localizedMessage ?: "Capture failed")) }
-                            )
-                        },
-                        capturedImageUri = uiState.capturedImageUri,
-                        onGalleryClick = {
-                            if (uiState.capturedImageUri != null) {
-                                Toast.makeText(context, "Reviewing Captured Photo...", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Loading System Gallery...", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onSwitchCamera = {
-                            viewModel.onEvent(StudioEvent.SwitchCamera)
-                            previewViewReference?.let {
-                                controller.switchCamera(
-                                    lifecycleOwner = lifecycleOwner,
-                                    previewView = it,
-                                    onPhotoCaptured = { uri -> viewModel.onEvent(StudioEvent.PhotoCaptured(uri)) },
-                                    onError = { ex -> viewModel.onEvent(StudioEvent.CaptureError(ex.localizedMessage ?: "Capture failed")) }
-                                )
-                            }
-                        },
-                        onTryOnClick = {
-                            Toast.makeText(context, "Calibrating fit map for Try-On simulation...", Toast.LENGTH_LONG).show()
-                        }
-                    )
                 }
 
-                if (com.aura.feature.camera.BuildConfig.DEBUG) {
+                // Render stream performance overlay conditionally in debug mode
+                if (uiState.isDebugMode) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)

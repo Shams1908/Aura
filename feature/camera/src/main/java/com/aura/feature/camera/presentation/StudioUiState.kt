@@ -22,6 +22,7 @@ data class StudioUiState(
     val zoomRatio: Float = 1.0f,
     val capturedImageUri: Uri? = null,
     val hasPermission: Boolean = false,
+    val isDebugMode: Boolean = false,
     val errorMessage: String? = null,
     
     // Bottom Sheet state

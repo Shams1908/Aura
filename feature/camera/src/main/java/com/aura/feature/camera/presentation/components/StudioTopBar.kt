@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +31,8 @@ import androidx.compose.ui.unit.dp
 fun StudioTopBar(
     isFlashEnabled: Boolean,
     onFlashToggle: (Boolean) -> Unit,
+    isDebugMode: Boolean,
+    onDebugToggle: () -> Unit,
     onCloseClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -91,6 +94,21 @@ fun StudioTopBar(
                     imageVector = flashIcon,
                     contentDescription = "Toggle Flash",
                     tint = if (isFlashEnabled) Color.Black else Color.White
+                )
+            }
+
+            // Debug Toggle Button
+            IconButton(
+                onClick = onDebugToggle,
+                modifier = Modifier.background(
+                    if (isDebugMode) Color(0xFF00E5FF).copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.5f),
+                    CircleShape
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Toggle Debug Mode",
+                    tint = if (isDebugMode) Color.Black else Color.White
                 )
             }
 

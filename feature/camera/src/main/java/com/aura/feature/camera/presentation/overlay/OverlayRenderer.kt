@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.semantics
 @Composable
 fun OverlayRenderer(
     viewModel: OverlayRendererViewModel,
+    isDebugMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.overlayState.collectAsState()
@@ -30,6 +31,15 @@ fun OverlayRenderer(
     ) {
         val activeElements = state.elements
             .filter { it.isVisible && state.activeLayers.contains(it.layer) }
+            .filter { element ->
+                if (!isDebugMode) {
+                    element.id != "pose_skeleton" &&
+                    element.id != "face_guide" &&
+                    element.id != "shoulder_guide"
+                } else {
+                    true
+                }
+            }
             .sortedBy { it.layer.zIndex }
 
         activeElements.forEach { element ->

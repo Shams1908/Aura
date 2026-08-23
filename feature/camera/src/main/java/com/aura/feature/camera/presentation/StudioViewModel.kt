@@ -33,6 +33,7 @@ sealed interface StudioEvent {
     object ResetPreview : StudioEvent
     data class SetBottomSheetExpanded(val expanded: Boolean) : StudioEvent
     data class SetStatus(val status: StudioStatus) : StudioEvent
+    object ToggleDebugMode : StudioEvent
 }
 
 /**
@@ -173,6 +174,11 @@ class StudioViewModel @Inject constructor(
             is StudioEvent.SetBottomSheetExpanded -> {
                 _uiState.update {
                     it.copy(isBottomSheetExpanded = event.expanded)
+                }
+            }
+            is StudioEvent.ToggleDebugMode -> {
+                _uiState.update {
+                    it.copy(isDebugMode = !it.isDebugMode)
                 }
             }
             is StudioEvent.SetStatus -> {
