@@ -2,6 +2,9 @@ package com.aura.feature.ai.presentation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -46,7 +49,6 @@ import com.aura.core.designsystem.components.AuraErrorCard
 import com.aura.core.designsystem.components.AuraShimmer
 import com.aura.core.designsystem.components.AuraSectionTitle
 import com.aura.core.designsystem.components.AuraTopBar
-import com.aura.core.designsystem.components.AuraUploadCard
 import com.aura.feature.ai.domain.model.WorkspaceAction
 
 private val mockOutfitImages = listOf(
@@ -66,8 +68,6 @@ fun OutfitWorkspaceScreen(
     onNavigateToSimilarProducts: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    var imageIndex by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -108,13 +108,6 @@ fun OutfitWorkspaceScreen(
                         .padding(paddingValues)
                         .padding(horizontal = 16.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Upload an outfit to begin AI analysis.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // SECTION 1: Selected Reference Card or Upload Card
@@ -124,19 +117,23 @@ fun OutfitWorkspaceScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 coil.compose.AsyncImage(
                                     model = state.selectedImageUri,
-                                    contentDescription = null,
+                                    contentDescription = "Selected reference preview",
                                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                                     modifier = Modifier
-                                        .size(72.dp)
-                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                        .size(88.dp)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     Text(
                                         text = "SELECTED REFERENCE",
                                         style = MaterialTheme.typography.labelSmall,
@@ -145,9 +142,11 @@ fun OutfitWorkspaceScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = state.filename ?: "Custom Reference Image",
+                                        text = state.filename ?: "Selected Outfit",
                                         style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                     if (state.dimensions != null) {
                                         Text(
@@ -156,29 +155,88 @@ fun OutfitWorkspaceScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                         )
                                     }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        TextButton(
+                                            onClick = { viewModel.removeImage() },
+                                            contentPadding = PaddingValues(0.dp),
+                                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.error
+                                            )
+                                        ) {
+                                            Text(
+                                                text = "Remove",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        TextButton(
+                                            onClick = { onNavigateBack?.invoke() },
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(
+                                                text = "Change",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                AuraButton(
-                                    text = "Remove",
-                                    type = AuraButtonType.Secondary,
-                                    onClick = { viewModel.removeImage() }
-                                )
                             }
                         }
                     } else {
-                        AuraUploadCard(
-                            selectedImageUri = state.selectedImageUri,
-                            isProcessing = state.isProcessing,
-                            title = "Upload Outfit",
-                            description = "Supports high-resolution JPG or PNG",
-                            onUploadClick = {
-                                val nextImage = mockOutfitImages[imageIndex]
-                                imageIndex = (imageIndex + 1) % mockOutfitImages.size
-                                viewModel.selectImage(nextImage)
-                            },
-                            onReplaceClick = {},
-                            onRemoveClick = {}
-                        )
+                        AuraCard(
+                            variant = AuraCardVariant.Filled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = androidx.compose.foundation.shape.CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = "Upload Placeholder",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = "No outfit selected",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Import a reference to begin.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                AuraButton(
+                                    text = "Select",
+                                    type = AuraButtonType.Primary,
+                                    onClick = { onNavigateBack?.invoke() }
+                                )
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 
