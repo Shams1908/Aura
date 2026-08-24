@@ -183,7 +183,7 @@ fun OutfitWorkspaceScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // SECTION 2: Detected Clothing
-                    if (state.selectedImageUri != null) {
+                    if (state.selectedImageUri != null && (state.isProcessing || state.detectedItems.isNotEmpty())) {
                         AuraSectionTitle(title = "Detected Clothing")
                         
                         if (state.isProcessing && state.detectedItems.isEmpty()) {

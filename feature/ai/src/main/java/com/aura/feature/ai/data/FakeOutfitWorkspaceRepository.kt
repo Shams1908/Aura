@@ -35,12 +35,7 @@ class FakeOutfitWorkspaceRepository @Inject constructor() {
         } else {
             emit(
                 Result.success(
-                    listOf(
-                        DetectedClothing(id = "1", name = "Oversized Hoodie", confidence = 0.94f),
-                        DetectedClothing(id = "2", name = "Cargo Pants", confidence = 0.88f),
-                        DetectedClothing(id = "3", name = "White Sneakers", confidence = 0.95f),
-                        DetectedClothing(id = "4", name = "Crossbody Bag", confidence = 0.81f)
-                    )
+                    emptyList()
                 )
             )
         }

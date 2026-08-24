@@ -43,6 +43,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import android.widget.Toast
 import android.net.Uri
+import android.content.Intent
 import androidx.compose.ui.text.font.FontWeight
 import com.aura.core.designsystem.components.AuraButton
 import com.aura.core.designsystem.components.AuraButtonType
@@ -108,6 +109,12 @@ fun HomeScreen(
         if (uri != null) {
             val metadata = validateAndGetMetadata(context, uri)
             if (metadata != null) {
+                try {
+                    val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+                } catch (e: Exception) {
+                    android.util.Log.w("AURA_DEBUG", "Persistable URI permission not supported for $uri", e)
+                }
                 val refImage = com.aura.core.common.data.ReferenceImage(
                     uri = uri.toString(),
                     source = com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER,

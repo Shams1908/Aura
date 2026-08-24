@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -51,6 +52,7 @@ class SessionManagerImpl @Inject constructor(
         val session = OutfitSession(sessionId = newId)
         repository.saveSession(session)
         repository.setActiveSessionId(newId)
+        _activeSession.value = session
         return session
     }
 
@@ -145,6 +147,10 @@ class SessionManagerImpl @Inject constructor(
     override suspend fun loadSession(sessionId: OutfitSessionId) {
         android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.loadSession: loading session ID = ${sessionId.value}")
         repository.setActiveSessionId(sessionId)
+        val session = repository.getSession(sessionId).firstOrNull()
+        if (session != null) {
+            _activeSession.value = session
+        }
     }
 
     override suspend fun updateCapturedUserPhoto(uri: String) {
@@ -159,7 +165,16 @@ class SessionManagerImpl @Inject constructor(
 
     override suspend fun updateReferenceImage(referenceImage: ReferenceImage) {
         android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.updateReferenceImage: uri = ${referenceImage.uri}")
-        val current = _activeSession.value ?: return
+        val current = _activeSession.value ?: run {
+            val activeId = repository.getActiveSessionId().firstOrNull()
+            if (activeId != null) {
+                repository.getSession(activeId).firstOrNull()
+            } else null
+        }
+        if (current == null) {
+            android.util.Log.e("AURA_DEBUG", "updateReferenceImage: active session is null!")
+            return
+        }
         val updated = current.copy(
             referenceImage = referenceImage,
             referenceOutfitUri = referenceImage.uri,
@@ -167,5 +182,6 @@ class SessionManagerImpl @Inject constructor(
             updatedTime = System.currentTimeMillis()
         )
         repository.saveSession(updated)
+        _activeSession.value = updated
     }
 }

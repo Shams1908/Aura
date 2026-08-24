@@ -85,22 +85,40 @@ class OutfitWorkspaceViewModel @Inject constructor(
 
     private fun selectImageInternal(session: com.aura.core.common.session.OutfitSession) {
         val uri = session.referenceOutfitUri ?: return
-        val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
-        if (currentState.selectedImageUri == uri) return
+        val currentState = _uiState.value as? OutfitWorkspaceUiState.Success
+            ?: OutfitWorkspaceUiState.Success(tips = repository.getTips())
+        if (currentState.selectedImageUri == uri && currentState.referenceImage == session.referenceImage) return
 
         val refImage = session.referenceImage
         val resolvedFilename = when (refImage?.source) {
-            com.aura.core.common.data.ReferenceImageSource.USER_DEVICE_GALLERY -> refImage.metadata?.title ?: "Device Photos Image"
-            com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER -> refImage.metadata?.title ?: "Custom File Picker Image"
+            com.aura.core.common.data.ReferenceImageSource.USER_DEVICE_GALLERY -> {
+                val title = refImage.metadata?.title
+                if (!title.isNullOrBlank()) title else "Selected Outfit"
+            }
+            com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER -> {
+                val title = refImage.metadata?.title
+                if (!title.isNullOrBlank()) title else "Selected Outfit"
+            }
             else -> when {
                 uri.contains("1556821840") -> "casual_hoodie_outfit.jpg"
                 uri.contains("1515886657") -> "model_summer_wear.png"
-                else -> refImage?.metadata?.title ?: "editorial_streetwear.jpg"
+                else -> {
+                    val title = refImage?.metadata?.title
+                    if (!title.isNullOrBlank()) title else "Selected Outfit"
+                }
             }
         }
         val resolvedDimensions = refImage?.metadata?.let {
-            if (it.sizeBytes != null) "${it.sizeBytes} bytes" else null
-        } ?: "1200 x 1600 px"
+            val size = it.sizeBytes
+            if (size != null) {
+                val kb = size / 1024.0
+                if (kb > 1024) {
+                    String.format(java.util.Locale.US, "%.2f MB", kb / 1024.0)
+                } else {
+                    String.format(java.util.Locale.US, "%.1f KB", kb)
+                }
+            } else null
+        } ?: "1.2 MB"
 
         _uiState.value = currentState.copy(
             selectedImageUri = uri,
@@ -149,8 +167,8 @@ class OutfitWorkspaceViewModel @Inject constructor(
     }
 
     private fun removeImageInternal() {
-        val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
-        if (currentState.selectedImageUri == null) return
+        val currentState = _uiState.value as? OutfitWorkspaceUiState.Success
+            ?: OutfitWorkspaceUiState.Success(tips = repository.getTips())
         _uiState.value = currentState.copy(
             selectedImageUri = null,
             isProcessing = false,
@@ -158,7 +176,8 @@ class OutfitWorkspaceViewModel @Inject constructor(
             detectedStyle = null,
             filename = null,
             dimensions = null,
-            infoMessage = null
+            infoMessage = null,
+            referenceImage = null
         )
     }
 
