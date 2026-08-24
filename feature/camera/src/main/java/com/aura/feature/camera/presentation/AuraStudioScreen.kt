@@ -114,21 +114,6 @@ fun AuraStudioScreen(
         }
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            viewModel.onEvent(StudioEvent.SelectCustomImage(uri, ReferenceImageSource.USER_DEVICE_GALLERY))
-        }
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            viewModel.onEvent(StudioEvent.SelectCustomImage(uri, ReferenceImageSource.USER_FILE_PICKER))
-        }
-    }
 
     android.util.Log.d("AURA_DEBUG", "AuraStudioScreen composed. uiState.hasPermission = ${uiState.hasPermission}, uiState.status = ${uiState.status}")
 
@@ -401,18 +386,7 @@ fun AuraStudioScreen(
                 ) {
                     StudioBottomSheet(
                         uiState = uiState,
-                        onExpandedToggle = { expanded -> viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(expanded)) },
-                        onPickPhoto = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        onPickFile = {
-                            filePickerLauncher.launch("image/*")
-                        },
-                        onSelectOutfit = { outfit ->
-                            viewModel.onEvent(StudioEvent.SelectDefaultOutfit(outfit.imageUrl, outfit))
-                        }
+                        onExpandedToggle = { expanded -> viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(expanded)) }
                     )
                 }
 

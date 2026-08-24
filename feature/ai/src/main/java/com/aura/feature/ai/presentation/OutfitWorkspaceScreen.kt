@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -116,42 +117,68 @@ fun OutfitWorkspaceScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // SECTION 1: Upload Card
-                    AuraUploadCard(
-                        selectedImageUri = state.selectedImageUri,
-                        isProcessing = state.isProcessing,
-                        title = "Upload Outfit",
-                        description = "Supports high-resolution JPG or PNG",
-                        onUploadClick = {
-                            val nextImage = mockOutfitImages[imageIndex]
-                            imageIndex = (imageIndex + 1) % mockOutfitImages.size
-                            viewModel.selectImage(nextImage)
-                        },
-                        onReplaceClick = {
-                            val nextImage = mockOutfitImages[imageIndex]
-                            imageIndex = (imageIndex + 1) % mockOutfitImages.size
-                            viewModel.selectImage(nextImage)
-                        },
-                        onRemoveClick = {
-                            viewModel.removeImage()
+                    // SECTION 1: Selected Reference Card or Upload Card
+                    if (state.selectedImageUri != null) {
+                        AuraCard(
+                            variant = AuraCardVariant.Filled,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                coil.compose.AsyncImage(
+                                    model = state.selectedImageUri,
+                                    contentDescription = null,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "SELECTED REFERENCE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = state.filename ?: "Custom Reference Image",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (state.dimensions != null) {
+                                        Text(
+                                            text = state.dimensions,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                AuraButton(
+                                    text = "Remove",
+                                    type = AuraButtonType.Secondary,
+                                    onClick = { viewModel.removeImage() }
+                                )
+                            }
                         }
-                    )
-                    
-                    if (state.selectedImageUri != null && state.filename != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-                            Text(
-                                text = "Filename: ${state.filename}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Dimensions: ${state.dimensions}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                            )
-                        }
+                    } else {
+                        AuraUploadCard(
+                            selectedImageUri = state.selectedImageUri,
+                            isProcessing = state.isProcessing,
+                            title = "Upload Outfit",
+                            description = "Supports high-resolution JPG or PNG",
+                            onUploadClick = {
+                                val nextImage = mockOutfitImages[imageIndex]
+                                imageIndex = (imageIndex + 1) % mockOutfitImages.size
+                                viewModel.selectImage(nextImage)
+                            },
+                            onReplaceClick = {},
+                            onRemoveClick = {}
+                        )
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 

@@ -37,7 +37,7 @@ class OutfitWorkspaceViewModel @Inject constructor(
                 if (session != null) {
                     val uri = session.referenceOutfitUri
                     if (uri != null) {
-                        selectImageInternal(uri)
+                        selectImageInternal(session)
                     } else {
                         removeImageInternal()
                     }
@@ -81,28 +81,36 @@ class OutfitWorkspaceViewModel @Inject constructor(
                 )
             )
         }
-        selectImageInternal(uri)
     }
 
-    private fun selectImageInternal(uri: String) {
+    private fun selectImageInternal(session: com.aura.core.common.session.OutfitSession) {
+        val uri = session.referenceOutfitUri ?: return
         val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
         if (currentState.selectedImageUri == uri) return
 
-        val mockFilename = when {
-            uri.contains("1556821840") -> "casual_hoodie_outfit.jpg"
-            uri.contains("1515886657") -> "model_summer_wear.png"
-            else -> "editorial_streetwear.jpg"
+        val refImage = session.referenceImage
+        val resolvedFilename = when (refImage?.source) {
+            com.aura.core.common.data.ReferenceImageSource.USER_DEVICE_GALLERY -> refImage.metadata?.title ?: "Device Photos Image"
+            com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER -> refImage.metadata?.title ?: "Custom File Picker Image"
+            else -> when {
+                uri.contains("1556821840") -> "casual_hoodie_outfit.jpg"
+                uri.contains("1515886657") -> "model_summer_wear.png"
+                else -> refImage?.metadata?.title ?: "editorial_streetwear.jpg"
+            }
         }
-        val mockDimensions = "1200 x 1600 px"
+        val resolvedDimensions = refImage?.metadata?.let {
+            if (it.sizeBytes != null) "${it.sizeBytes} bytes" else null
+        } ?: "1200 x 1600 px"
 
         _uiState.value = currentState.copy(
             selectedImageUri = uri,
             isProcessing = true,
             detectedItems = emptyList(),
             detectedStyle = null,
-            filename = mockFilename,
-            dimensions = mockDimensions,
-            infoMessage = null
+            filename = resolvedFilename,
+            dimensions = resolvedDimensions,
+            infoMessage = null,
+            referenceImage = refImage
         )
 
         viewModelScope.launch {

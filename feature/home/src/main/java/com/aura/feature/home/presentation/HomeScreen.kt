@@ -3,6 +3,9 @@ package com.aura.feature.home.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import android.widget.Toast
+import android.net.Uri
+import androidx.compose.ui.text.font.FontWeight
+import com.aura.core.designsystem.components.AuraButton
+import com.aura.core.designsystem.components.AuraButtonType
 import com.aura.feature.home.presentation.components.EmptyHome
 import com.aura.feature.home.presentation.components.FeatureCard
 import com.aura.feature.home.presentation.components.HomeHeader
@@ -59,7 +71,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToWorkspace: (String?) -> Unit,
+    onNavigateToWorkspace: (com.aura.core.common.data.ReferenceImage?) -> Unit,
     onNavigateToUserPhotos: () -> Unit,
     onNavigateToAnalysis: () -> Unit,
     onNavigateToTryOn: () -> Unit,
@@ -68,7 +80,46 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val homeState by viewModel.homeState.collectAsState()
-    
+    val context = LocalContext.current
+    var showSourceDialog by remember { mutableStateOf(false) }
+    var showAuraCollectionDialog by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val metadata = validateAndGetMetadata(context, uri)
+            if (metadata != null) {
+                val refImage = com.aura.core.common.data.ReferenceImage(
+                    uri = uri.toString(),
+                    source = com.aura.core.common.data.ReferenceImageSource.USER_DEVICE_GALLERY,
+                    metadata = metadata
+                )
+                onNavigateToWorkspace(refImage)
+            } else {
+                Toast.makeText(context, "Failed to load or validate the selected image.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val metadata = validateAndGetMetadata(context, uri)
+            if (metadata != null) {
+                val refImage = com.aura.core.common.data.ReferenceImage(
+                    uri = uri.toString(),
+                    source = com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER,
+                    metadata = metadata
+                )
+                onNavigateToWorkspace(refImage)
+            } else {
+                Toast.makeText(context, "Failed to load or validate the selected image.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     val quickActions = remember {
         listOf(
             QuickActionItem(
@@ -89,6 +140,127 @@ fun HomeScreen(
                 icon = Icons.Default.Person,
                 color = Color(0xFFE3F2FD)
             )
+        )
+    }
+
+    // Choose Source Dialog
+    if (showSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showSourceDialog = false },
+            title = { Text("Select Outfit Source") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Choose how you'd like to import your reference outfit:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AuraButton(
+                        text = "Device Photos",
+                        type = AuraButtonType.Primary,
+                        onClick = {
+                            showSourceDialog = false
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    AuraButton(
+                        text = "Browse Files",
+                        type = AuraButtonType.Primary,
+                        onClick = {
+                            showSourceDialog = false
+                            filePickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    AuraButton(
+                        text = "Aura Collection",
+                        type = AuraButtonType.Primary,
+                        onClick = {
+                            showSourceDialog = false
+                            showAuraCollectionDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSourceDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Aura Collection Selection Dialog
+    if (showAuraCollectionDialog && homeState is HomeUiState.Success) {
+        val successState = homeState as HomeUiState.Success
+        AlertDialog(
+            onDismissRequest = { showAuraCollectionDialog = false },
+            title = { Text("Select Curated Outfit") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Choose an outfit from our curated gallery:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                        columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.height(300.dp)
+                    ) {
+                        items(successState.trending.size) { index ->
+                            val outfit = successState.trending[index]
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        showAuraCollectionDialog = false
+                                        val refImage = com.aura.core.common.data.ReferenceImage(
+                                            uri = outfit.imageUrl,
+                                            source = com.aura.core.common.data.ReferenceImageSource.DEFAULT_GALLERY,
+                                            metadata = com.aura.core.common.data.ReferenceImageMetadata(
+                                                title = outfit.title,
+                                                brand = outfit.brand,
+                                                category = outfit.category
+                                            )
+                                        )
+                                        onNavigateToWorkspace(refImage)
+                                    }
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    coil.compose.AsyncImage(
+                                        model = outfit.imageUrl,
+                                        contentDescription = outfit.title,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(100.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = outfit.title,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAuraCollectionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -138,7 +310,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         UploadOutfitCard(
-                            onClick = { onNavigateToWorkspace(null) },
+                            onClick = { showSourceDialog = true },
                             modifier = Modifier.weight(1f)
                         )
                         AuraStudioCard(
@@ -154,7 +326,16 @@ fun HomeScreen(
                         subtitle = "Curated AI outfits for your weekend style",
                         imageUrl = "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600",
                         onClick = {
-                            onNavigateToWorkspace("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600")
+                            val refImage = com.aura.core.common.data.ReferenceImage(
+                                uri = "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600",
+                                source = com.aura.core.common.data.ReferenceImageSource.DEFAULT_GALLERY,
+                                metadata = com.aura.core.common.data.ReferenceImageMetadata(
+                                    title = "Chic Summer Editorial",
+                                    brand = "Curated",
+                                    category = "Edit"
+                                )
+                            )
+                            onNavigateToWorkspace(refImage)
                         }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
@@ -227,5 +408,44 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+private fun validateAndGetMetadata(context: android.content.Context, uri: Uri): com.aura.core.common.data.ReferenceImageMetadata? {
+    val contentResolver = context.contentResolver
+    var pfd: android.os.ParcelFileDescriptor? = null
+    try {
+        pfd = contentResolver.openFileDescriptor(uri, "r")
+        if (pfd == null) return null
+
+        val mimeType = contentResolver.getType(uri) ?: "image/*"
+        if (!mimeType.startsWith("image/")) {
+            return null
+        }
+
+        val size = pfd.statSize
+        var displayName = "Custom Image"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1) {
+                    displayName = cursor.getString(nameIndex)
+                }
+            }
+        }
+
+        return com.aura.core.common.data.ReferenceImageMetadata(
+            title = displayName,
+            sizeBytes = size,
+            mimeType = mimeType,
+            addedTimeMs = System.currentTimeMillis()
+        )
+    } catch (e: Exception) {
+        android.util.Log.e("AURA_DEBUG", "Failed to open or validate URI: $uri", e)
+        return null
+    } finally {
+        try {
+            pfd?.close()
+        } catch (ignored: Exception) {}
     }
 }

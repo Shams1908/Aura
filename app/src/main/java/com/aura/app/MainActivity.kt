@@ -251,24 +251,11 @@ fun AuraNavHost(
                 onNavigateToSearch = { navController.navigate(AuraDestinations.SEARCH) },
                 onNavigateToDetail = { id -> navController.navigate("detail/$id") },
                 onNavigateToProfile = { navController.navigate(AuraDestinations.PROFILE) },
-                onNavigateToWorkspace = { imageUri ->
+                onNavigateToWorkspace = { referenceImage ->
                     coroutineScope.launch {
                         val session = sessionManager.createNewSession()
-                        if (imageUri != null) {
-                            sessionManager.attachOutfit(
-                                outfitUri = imageUri,
-                                metadata = com.aura.core.common.data.OutfitModel(
-                                    id = System.currentTimeMillis().toString(),
-                                    title = "Workspace Outfit",
-                                    brand = "Workspace",
-                                    description = "Visual fit analysis item",
-                                    imageUrl = imageUri,
-                                    category = "Tops",
-                                    color = "Default",
-                                    tags = listOf("Workspace"),
-                                    price = 0.0
-                                )
-                            )
+                        if (referenceImage != null) {
+                            sessionManager.updateReferenceImage(referenceImage)
                         }
                         navController.navigate("workspace?sessionId=${session.sessionId.value}")
                     }

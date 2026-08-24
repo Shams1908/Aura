@@ -24,7 +24,8 @@ sealed interface OutfitWorkspaceUiState {
         val detectedStyle: DetectedStyle? = null,
         val filename: String? = null,
         val dimensions: String? = null,
-        val infoMessage: String? = null
+        val infoMessage: String? = null,
+        val referenceImage: com.aura.core.common.data.ReferenceImage? = null
     ) : OutfitWorkspaceUiState
     
     /**
