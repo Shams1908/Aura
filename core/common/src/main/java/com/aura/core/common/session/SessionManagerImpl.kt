@@ -56,15 +56,22 @@ class SessionManagerImpl @Inject constructor(
 
     override suspend fun attachOutfit(outfitUri: String, metadata: OutfitModel) {
         val current = _activeSession.value ?: return
-        val refImg = ReferenceImage(
-            uri = outfitUri,
-            source = ReferenceImageSource.DEFAULT_GALLERY,
-            metadata = ReferenceImageMetadata(
-                title = metadata.title,
-                brand = metadata.brand,
-                category = metadata.category
+        val existingImg = current.referenceImage
+        val refImg = if (existingImg != null &&
+            (existingImg.source == ReferenceImageSource.USER_DEVICE_GALLERY ||
+             existingImg.source == ReferenceImageSource.USER_FILE_PICKER)) {
+            existingImg
+        } else {
+            ReferenceImage(
+                uri = outfitUri,
+                source = ReferenceImageSource.DEFAULT_GALLERY,
+                metadata = ReferenceImageMetadata(
+                    title = metadata.title,
+                    brand = metadata.brand,
+                    category = metadata.category
+                )
             )
-        )
+        }
         val updated = current.copy(
             stage = SessionLifecycleStage.OUTFIT_ATTACHED,
             referenceOutfitUri = outfitUri,

@@ -37,6 +37,7 @@ class TorsoTracker(
 
     private var smoothedCenter: Offset? = null
     private var smoothedShoulderWidth: Float? = null
+    private var smoothedTorsoWidth: Float? = null
     private var smoothedTorsoHeight: Float? = null
     private var smoothedRotation: Float? = null
 
@@ -87,6 +88,10 @@ class TorsoTracker(
             val newSWidth = if (ssw == null) sWidth else ssw + (sWidth - ssw) * smoothingFactor
             smoothedShoulderWidth = newSWidth
 
+            val stw = smoothedTorsoWidth
+            val newTWidth = if (stw == null) tWidth else stw + (tWidth - stw) * smoothingFactor
+            smoothedTorsoWidth = newTWidth
+
             val sth = smoothedTorsoHeight
             val newHeight = if (sth == null) tHeight else sth + (tHeight - sth) * smoothingFactor
             smoothedTorsoHeight = newHeight
@@ -107,7 +112,7 @@ class TorsoTracker(
                 rightHip = rh,
                 center = newCenter,
                 shoulderWidth = newSWidth,
-                torsoWidth = tWidth,
+                torsoWidth = newTWidth,
                 torsoHeight = newHeight,
                 rotation = newRotation,
                 confidence = confidence
@@ -172,6 +177,7 @@ class TorsoTracker(
         isTracking = false
         smoothedCenter = null
         smoothedShoulderWidth = null
+        smoothedTorsoWidth = null
         smoothedTorsoHeight = null
         smoothedRotation = null
     }

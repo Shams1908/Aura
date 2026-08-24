@@ -32,17 +32,10 @@ fun OverlayRenderer(
         val activeElements = state.elements
             .filter { it.isVisible && state.activeLayers.contains(it.layer) }
             .filter { element ->
-                if (!isDebugMode) {
-                    element.id != "pose_skeleton" &&
-                    element.id != "face_guide" &&
-                    element.id != "shoulder_guide" &&
-                    element.id != "tracking_box" &&
-                    element.id != "style_score_bubble" &&
-                    element.id != "ai_status_bubble" &&
-                    element.id != "recommendation_bubble" &&
-                    !element.id.startsWith("garment_")
+                if (isDebugMode) {
+                    element.purpose == OverlayPurpose.PRODUCTION || element.purpose == OverlayPurpose.DEBUG
                 } else {
-                    true
+                    element.purpose == OverlayPurpose.PRODUCTION
                 }
             }
             .sortedBy { it.layer.zIndex }

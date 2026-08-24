@@ -115,6 +115,7 @@ data class PoseSkeletonElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.DEBUG
 
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
@@ -213,6 +214,7 @@ data class TorsoGuideElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFFFFCC00)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.DEBUG
 
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
@@ -283,6 +285,7 @@ data class TrackedTorsoBoxElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.PRODUCTION
 
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
@@ -350,6 +353,7 @@ data class BodyOutlineElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF).copy(alpha = 0.5f)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val pulseAlpha by animator.pulse(0.2f, 0.6f)
@@ -383,6 +387,7 @@ data class FaceGuideElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.DEBUG
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val pulseAlpha by animator.pulse(0.4f, 0.9f)
@@ -418,6 +423,7 @@ data class ShoulderGuideElement(
     override val style: OverlayStyle = OverlayStyle(primaryColor = Color(0xFF00E5FF)),
     override val isVisible: Boolean = true
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.DEBUG
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val pulseAlpha by animator.pulse(0.4f, 0.9f)
@@ -460,6 +466,7 @@ data class TrackingBoxElement(
     val targetOffset: Offset = Offset(200f, 400f),
     val targetSize: Size = Size(350f, 550f)
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val animatedOffset by animator.tracking(targetOffset)
@@ -487,6 +494,7 @@ data class GarmentBoundingBoxElement(
     val rectOffset: Offset,
     val rectSize: Size
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val animatedOffset by animator.tracking(rectOffset)
@@ -529,6 +537,7 @@ data class StyleScoreBubbleElement(
     override val isVisible: Boolean = true,
     val score: Int
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         val scale by animator.scale(1.0f)
@@ -582,6 +591,7 @@ data class AiStatusBubbleElement(
     override val isVisible: Boolean = true,
     val statusMessage: String
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         Box(
@@ -634,6 +644,7 @@ data class RecommendationBubbleElement(
     override val isVisible: Boolean = true,
     val recommendations: List<String>
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         Box(
@@ -682,6 +693,7 @@ data class ProgressIndicatorElement(
     override val isVisible: Boolean = true,
     val progress: Float? = null
 ) : OverlayElement {
+    override val purpose: OverlayPurpose = OverlayPurpose.MOCK
     @Composable
     override fun Render(modifier: Modifier, animator: OverlayAnimator) {
         Box(
