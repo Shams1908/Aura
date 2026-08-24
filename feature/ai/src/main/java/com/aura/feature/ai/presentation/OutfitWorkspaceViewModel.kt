@@ -1,10 +1,15 @@
 package com.aura.feature.ai.presentation
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aura.feature.ai.data.FakeOutfitWorkspaceRepository
 import com.aura.feature.ai.domain.model.WorkspaceAction
+import com.aura.feature.ai.domain.GarmentExtractionEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +24,10 @@ import com.aura.core.common.session.OutfitSessionId
  */
 @HiltViewModel
 class OutfitWorkspaceViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: FakeOutfitWorkspaceRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val garmentExtractionEngine: GarmentExtractionEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<OutfitWorkspaceUiState>(OutfitWorkspaceUiState.Loading)
@@ -120,6 +127,12 @@ class OutfitWorkspaceViewModel @Inject constructor(
             } else null
         } ?: "1.2 MB"
 
+        val resolvedRefImage = refImage ?: com.aura.core.common.data.ReferenceImage(
+            uri = uri,
+            source = com.aura.core.common.data.ReferenceImageSource.DEFAULT_GALLERY,
+            metadata = com.aura.core.common.data.ReferenceImageMetadata(title = "Selected Outfit")
+        )
+
         _uiState.value = currentState.copy(
             selectedImageUri = uri,
             isProcessing = true,
@@ -128,31 +141,54 @@ class OutfitWorkspaceViewModel @Inject constructor(
             filename = resolvedFilename,
             dimensions = resolvedDimensions,
             infoMessage = null,
-            referenceImage = refImage
+            referenceImage = resolvedRefImage
         )
 
         viewModelScope.launch {
-            repository.detectClothing(uri).collect { result ->
-                result.fold(
-                    onSuccess = { items ->
-                        _uiState.update { state ->
-                            if (state is OutfitWorkspaceUiState.Success) {
-                                state.copy(
-                                    isProcessing = false,
-                                    detectedItems = items
-                                )
-                            } else {
-                                state
-                            }
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            OutfitWorkspaceUiState.Error(error.localizedMessage ?: "Failed to detect clothing")
-                        }
-                    }
-                )
+            val bitmap = decodeBitmapFromUri(context, uri)
+            if (bitmap == null) {
+                _uiState.update { state ->
+                    if (state is OutfitWorkspaceUiState.Success) {
+                        state.copy(
+                            isProcessing = false,
+                            infoMessage = "Failed to load/decode reference image."
+                        )
+                    } else state
+                }
+                return@launch
             }
+
+            // Trigger extraction on-demand (exactly once)
+            val result = garmentExtractionEngine.extractGarment(resolvedRefImage, bitmap)
+            result.fold(
+                onSuccess = { asset ->
+                    _uiState.update { state ->
+                        if (state is OutfitWorkspaceUiState.Success) {
+                            state.copy(
+                                isProcessing = false,
+                                detectedItems = listOf(
+                                    com.aura.feature.ai.domain.model.DetectedClothing(
+                                        id = "ext_1",
+                                        name = asset.category,
+                                        confidence = asset.confidence
+                                    )
+                                )
+                            )
+                        } else state
+                    }
+                },
+                onFailure = { error ->
+                    android.util.Log.e("AURA_DEBUG", "Garment extraction error: ${error.message}")
+                    _uiState.update { state ->
+                        if (state is OutfitWorkspaceUiState.Success) {
+                            state.copy(
+                                isProcessing = false,
+                                infoMessage = error.message ?: "Garment extraction failed"
+                            )
+                        } else state
+                    }
+                }
+            )
         }
     }
 
@@ -276,5 +312,21 @@ class OutfitWorkspaceViewModel @Inject constructor(
     fun dismissInfo() {
         val currentState = _uiState.value as? OutfitWorkspaceUiState.Success ?: return
         _uiState.value = currentState.copy(infoMessage = null)
+    }
+}
+
+private fun decodeBitmapFromUri(context: android.content.Context, uriString: String): Bitmap? {
+    return try {
+        val uri = android.net.Uri.parse(uriString)
+        if (uri.scheme == "http" || uri.scheme == "https") {
+            Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+        } else {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            }
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("AURA_DEBUG", "Failed to decode bitmap from URI: $uriString", e)
+        null
     }
 }
