@@ -10,4 +10,5 @@ sealed class AIError(val msg: String, cause: Throwable? = null) : Exception(msg,
     object LowConfidence : AIError("LOW_CONFIDENCE: Garment detection confidence is too low.")
     object UnsupportedImage : AIError("UNSUPPORTED_IMAGE: Unsupported image format or unreadable Uri.")
     object ProcessingFailed : AIError("PROCESSING_FAILED: Garment extraction processing failed.")
+    object SegmentationFailed : AIError("Segmentation failed: No clothing mask pixels resolved within detection region.")
 }

@@ -6,6 +6,8 @@ import com.aura.feature.ai.domain.GarmentParser
 import com.aura.feature.ai.domain.MockGarmentParserImpl
 import com.aura.feature.ai.domain.GarmentExtractionEngine
 import com.aura.feature.ai.domain.GarmentExtractionEngineImpl
+import com.aura.feature.ai.segmentation.GarmentSegmenter
+import com.aura.feature.ai.segmentation.MediaPipeGarmentSegmenter
 import com.aura.feature.ai.inference.InferenceEngine
 import com.aura.feature.ai.inference.DefaultInferenceEngine
 import com.aura.feature.ai.repository.FashionVisionRepository
@@ -49,4 +51,10 @@ abstract class AiModule {
     abstract fun bindGarmentExtractionEngine(
         garmentExtractionEngineImpl: GarmentExtractionEngineImpl
     ): GarmentExtractionEngine
+
+    @Binds
+    @Singleton
+    abstract fun bindGarmentSegmenter(
+        mediaPipeGarmentSegmenter: MediaPipeGarmentSegmenter
+    ): GarmentSegmenter
 }
