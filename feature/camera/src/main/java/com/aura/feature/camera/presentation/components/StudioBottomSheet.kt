@@ -54,6 +54,9 @@ import com.aura.feature.camera.presentation.StudioUiState
 fun StudioBottomSheet(
     uiState: StudioUiState,
     onExpandedToggle: (Boolean) -> Unit,
+    onPickPhoto: () -> Unit,
+    onPickFile: () -> Unit,
+    onSelectOutfit: (com.aura.core.common.data.OutfitModel) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Dynamic height calculation based on state
@@ -121,7 +124,7 @@ fun StudioBottomSheet(
                 // Title + Style Chip
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "ACTIVE OUTFIT",
+                        text = "ACTIVE REFERENCE",
                         color = Color(0xFF00E5FF),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -212,20 +215,82 @@ fun StudioBottomSheet(
                         }
                     }
 
-                    // Future Suggestions / Accessories recommendations
+                    // Reference Image Source Selector
                     Column {
                         Text(
-                            text = "RECOMMENDED ACCESSORIES",
+                            text = "CHANGE REFERENCE IMAGE",
                             color = Color.White.copy(alpha = 0.6f),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(uiState.futureRecommendations) { recommendation ->
-                                AccessoryItemCard(title = recommendation)
+                            AuraChip(
+                                text = "Device Photos",
+                                selected = uiState.referenceImage?.source == com.aura.core.common.data.ReferenceImageSource.USER_DEVICE_GALLERY,
+                                onClick = onPickPhoto,
+                                modifier = Modifier.weight(1f)
+                            )
+                            AuraChip(
+                                text = "Browse Files",
+                                selected = uiState.referenceImage?.source == com.aura.core.common.data.ReferenceImageSource.USER_FILE_PICKER,
+                                onClick = onPickFile,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // Aura Collection List
+                    Column {
+                        Text(
+                            text = "AURA COLLECTION",
+                            color = Color.White.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (uiState.defaultOutfits.isEmpty()) {
+                            Text(
+                                text = "No outfits loaded.",
+                                color = Color.White.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        } else {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(uiState.defaultOutfits) { outfit ->
+                                    val isSelected = uiState.referenceImage?.uri == outfit.imageUrl
+                                    Box(
+                                        modifier = Modifier
+                                            .width(72.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.1f),
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { onSelectOutfit(outfit) }
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.padding(4.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = outfit.imageUrl,
+                                                contentDescription = outfit.title,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(64.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

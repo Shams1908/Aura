@@ -66,4 +66,9 @@ interface SessionManager {
      * Updates the captured user photo URI in the active session.
      */
     suspend fun updateCapturedUserPhoto(uri: String)
+
+    /**
+     * Updates the reference image in the active session.
+     */
+    suspend fun updateReferenceImage(referenceImage: com.aura.core.common.data.ReferenceImage)
 }

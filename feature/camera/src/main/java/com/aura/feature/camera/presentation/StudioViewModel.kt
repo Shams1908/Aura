@@ -1,9 +1,12 @@
 package com.aura.feature.camera.presentation
 
 import android.net.Uri
+import android.content.Context
+import android.os.ParcelFileDescriptor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +21,11 @@ import com.aura.core.vision.streaming.FrameStats
 import com.aura.core.vision.pipeline.VisionPipeline
 import com.aura.feature.camera.domain.PoseDetectorEngine
 import com.aura.feature.camera.domain.BodyPoseResult
+import com.aura.core.common.data.ReferenceImage
+import com.aura.core.common.data.ReferenceImageSource
+import com.aura.core.common.data.ReferenceImageMetadata
+import com.aura.core.common.data.OutfitModel
+import com.aura.core.common.data.OutfitRepository
 
 /**
  * Event actions dispatched from the Aura Studio screen.
@@ -34,6 +42,8 @@ sealed interface StudioEvent {
     data class SetBottomSheetExpanded(val expanded: Boolean) : StudioEvent
     data class SetStatus(val status: StudioStatus) : StudioEvent
     object ToggleDebugMode : StudioEvent
+    data class SelectDefaultOutfit(val outfitUri: String, val metadata: OutfitModel) : StudioEvent
+    data class SelectCustomImage(val uri: Uri, val source: ReferenceImageSource) : StudioEvent
 }
 
 /**
@@ -41,6 +51,8 @@ sealed interface StudioEvent {
  */
 @HiltViewModel
 class StudioViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val outfitRepository: OutfitRepository,
     private val sessionManager: SessionManager,
     val frameStreamManager: FrameStreamManager,
     private val visionPipeline: VisionPipeline,
@@ -58,15 +70,37 @@ class StudioViewModel @Inject constructor(
         android.util.Log.d("AURA_DEBUG", "StudioViewModel initialized")
         visionPipeline.start(viewModelScope)
         frameStreamManager.start(viewModelScope)
+
+        // Collect default outfits and update UI state
+        viewModelScope.launch {
+            outfitRepository.getTrendingOutfits().collect { outfits ->
+                _uiState.update { it.copy(defaultOutfits = outfits) }
+            }
+        }
+
         // Collect active session from SessionManager and sync relevant UI properties
         viewModelScope.launch {
             sessionManager.activeSession.collect { session ->
                 android.util.Log.d("AURA_DEBUG", "StudioViewModel collected activeSession: $session")
                 if (session != null) {
                     _uiState.update { state ->
+                        val refImage = session.referenceImage
+                        val name = when (refImage?.source) {
+                            ReferenceImageSource.USER_DEVICE_GALLERY -> refImage.metadata?.title ?: "Device Gallery Photo"
+                            ReferenceImageSource.USER_FILE_PICKER -> refImage.metadata?.title ?: "Custom File Picker Image"
+                            else -> session.referenceOutfitMetadata?.title ?: state.loadedOutfitName
+                        }
+                        val desc = session.referenceOutfitMetadata?.description ?: (refImage?.metadata?.let {
+                            "Custom selected reference image.\nSource: ${refImage.source}\nSize: ${it.sizeBytes ?: 0} bytes\nType: ${it.mimeType}"
+                        } ?: state.outfitDescription)
+
                         state.copy(
                             zoomRatio = session.cameraState.toFloatOrNull() ?: state.zoomRatio,
                             capturedImageUri = session.referenceOutfitUri?.let { Uri.parse(it) } ?: state.capturedImageUri,
+                            referenceImage = refImage,
+                            outfitThumbnailUrl = refImage?.uri ?: state.outfitThumbnailUrl,
+                            loadedOutfitName = name,
+                            outfitDescription = desc,
                             status = when (session.stage) {
                                 SessionLifecycleStage.CAMERA_READY -> StudioStatus.CAMERA_READY
                                 SessionLifecycleStage.TRACKING_READY -> StudioStatus.TRACKING_WAITING
@@ -194,6 +228,67 @@ class StudioViewModel @Inject constructor(
                     sessionManager.transitionStage(nextStage)
                 }
             }
+            is StudioEvent.SelectDefaultOutfit -> {
+                viewModelScope.launch {
+                    sessionManager.attachOutfit(event.outfitUri, event.metadata)
+                    _uiState.update { it.copy(errorMessage = null) }
+                }
+            }
+            is StudioEvent.SelectCustomImage -> {
+                viewModelScope.launch {
+                    val metadata = validateAndGetMetadata(event.uri)
+                    if (metadata != null) {
+                        val refImage = ReferenceImage(
+                            uri = event.uri.toString(),
+                            source = event.source,
+                            metadata = metadata
+                        )
+                        sessionManager.updateReferenceImage(refImage)
+                        _uiState.update { it.copy(errorMessage = null) }
+                    } else {
+                        _uiState.update { it.copy(errorMessage = "Failed to open or validate the selected image. Please try another one.") }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun validateAndGetMetadata(uri: Uri): ReferenceImageMetadata? {
+        val contentResolver = context.contentResolver
+        var pfd: ParcelFileDescriptor? = null
+        try {
+            pfd = contentResolver.openFileDescriptor(uri, "r")
+            if (pfd == null) return null
+
+            val mimeType = contentResolver.getType(uri) ?: "image/*"
+            if (!mimeType.startsWith("image/")) {
+                return null
+            }
+
+            val size = pfd.statSize
+            var displayName = "Custom Image"
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1) {
+                        displayName = cursor.getString(nameIndex)
+                    }
+                }
+            }
+
+            return ReferenceImageMetadata(
+                title = displayName,
+                sizeBytes = size,
+                mimeType = mimeType,
+                addedTimeMs = System.currentTimeMillis()
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AURA_DEBUG", "Failed to open or validate URI: $uri", e)
+            return null
+        } finally {
+            try {
+                pfd?.close()
+            } catch (ignored: Exception) {}
         }
     }
 

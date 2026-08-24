@@ -12,6 +12,9 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import com.aura.core.common.data.ReferenceImageSource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -108,6 +111,22 @@ fun AuraStudioScreen(
                 },
                 onError = { ex -> viewModel.onEvent(StudioEvent.CaptureError(ex.localizedMessage ?: "Init failed")) }
             )
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.onEvent(StudioEvent.SelectCustomImage(uri, ReferenceImageSource.USER_DEVICE_GALLERY))
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.onEvent(StudioEvent.SelectCustomImage(uri, ReferenceImageSource.USER_FILE_PICKER))
         }
     }
 
@@ -268,13 +287,16 @@ fun AuraStudioScreen(
                                         .clip(RoundedCornerShape(4.dp))
                                 )
                                 Text(
-                                    text = uiState.loadedOutfitName,
+                                    text = "Reference: ${uiState.loadedOutfitName}",
                                     color = Color.White,
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Text(
-                                    text = "• Info",
+                                    text = "• Change",
                                     color = Color(0xFF00E5FF),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium
@@ -379,7 +401,18 @@ fun AuraStudioScreen(
                 ) {
                     StudioBottomSheet(
                         uiState = uiState,
-                        onExpandedToggle = { expanded -> viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(expanded)) }
+                        onExpandedToggle = { expanded -> viewModel.onEvent(StudioEvent.SetBottomSheetExpanded(expanded)) },
+                        onPickPhoto = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        onPickFile = {
+                            filePickerLauncher.launch("image/*")
+                        },
+                        onSelectOutfit = { outfit ->
+                            viewModel.onEvent(StudioEvent.SelectDefaultOutfit(outfit.imageUrl, outfit))
+                        }
                     )
                 }
 

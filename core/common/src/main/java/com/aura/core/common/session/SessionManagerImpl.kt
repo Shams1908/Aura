@@ -156,4 +156,16 @@ class SessionManagerImpl @Inject constructor(
         )
         repository.saveSession(updated)
     }
+
+    override suspend fun updateReferenceImage(referenceImage: ReferenceImage) {
+        android.util.Log.d("AURA_DEBUG", "SessionManagerImpl.updateReferenceImage: uri = ${referenceImage.uri}")
+        val current = _activeSession.value ?: return
+        val updated = current.copy(
+            referenceImage = referenceImage,
+            referenceOutfitUri = referenceImage.uri,
+            stage = SessionLifecycleStage.OUTFIT_ATTACHED,
+            updatedTime = System.currentTimeMillis()
+        )
+        repository.saveSession(updated)
+    }
 }

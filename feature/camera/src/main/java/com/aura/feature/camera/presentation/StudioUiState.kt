@@ -27,6 +27,8 @@ data class StudioUiState(
     
     // Bottom Sheet state
     val isBottomSheetExpanded: Boolean = false,
+    val defaultOutfits: List<com.aura.core.common.data.OutfitModel> = emptyList(),
+    val referenceImage: com.aura.core.common.data.ReferenceImage? = null,
     
     // Loaded Outfit mock metadata
     val loadedOutfitName: String = "Midnight Noir Velvet Gown",
