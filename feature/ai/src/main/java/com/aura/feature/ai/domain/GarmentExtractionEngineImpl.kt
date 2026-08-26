@@ -48,12 +48,18 @@ class GarmentExtractionEngineImpl @Inject constructor(
             val segmentResult = garmentSegmenter.segment(decodedImage)
             val segmentData = segmentResult.getOrElse { error ->
                 println("AURA_DEBUG: GarmentExtractionEngineImpl: Segmentation failed with error: ${error.message}")
-                return Result.failure(AIError.ModelUnavailable)
+                return Result.failure(AIError.ModelUnavailable(
+                    category = bestDetection.label,
+                    confidence = bestDetection.confidence
+                ))
             }
 
             if (segmentData.status == SegmentationStatus.NO_CLOTHES_FOUND) {
                 println("AURA_DEBUG: GarmentExtractionEngineImpl: SegmentationFailed - No clothing pixels detected.")
-                return Result.failure(AIError.SegmentationFailed)
+                return Result.failure(AIError.SegmentationFailed(
+                    category = bestDetection.label,
+                    confidence = bestDetection.confidence
+                ))
             }
 
             // 4. Intersect the clothing mask with the YOLO bounding box region
@@ -65,6 +71,7 @@ class GarmentExtractionEngineImpl @Inject constructor(
             var maxX = -1
             var minY = originalHeight
             var maxY = -1
+            var activePixelCount = 0
 
             val maskPixels = IntArray(originalWidth * originalHeight)
             segmentData.mask.getPixels(maskPixels, 0, originalWidth, 0, 0, originalWidth, originalHeight)
@@ -79,6 +86,7 @@ class GarmentExtractionEngineImpl @Inject constructor(
                                             y <= boundingBox.bottom
 
                     if (isMaskActive && isInsideDetection) {
+                        activePixelCount++
                         // Keep pixel as active (fully opaque white for the alpha mask)
                         maskPixels[index] = android.graphics.Color.WHITE
                         if (x < minX) minX = x
@@ -92,14 +100,27 @@ class GarmentExtractionEngineImpl @Inject constructor(
                 }
             }
 
-            if (maxX < minX || maxY < minY) {
-                println("AURA_DEBUG: GarmentExtractionEngineImpl: SegmentationFailed - Empty intersection between YOLO box and Clothes mask.")
-                return Result.failure(AIError.SegmentationFailed)
+            val minRequiredPixels = 150
+            if (activePixelCount < minRequiredPixels || maxX < minX || maxY < minY) {
+                println("AURA_DEBUG: GarmentExtractionEngineImpl: SegmentationFailed - Active intersection pixels ($activePixelCount) below threshold or empty intersection.")
+                return Result.failure(AIError.SegmentationFailed(
+                    category = bestDetection.label,
+                    confidence = bestDetection.confidence
+                ))
             }
 
             // 5. Crop original RGB texture and mask to tight bounding box
             val croppedWidth = (maxX - minX) + 1
             val croppedHeight = (maxY - minY) + 1
+
+            // Debugging Support: Only log detailed stats in debug configurations
+            val coveragePercentage = (activePixelCount.toFloat() / (originalWidth * originalHeight)) * 100
+            android.util.Log.d("AURA_DEBUG_SEGMENTATION", "Mask stats: " +
+                "dimensions=[${originalWidth}x${originalHeight}], " +
+                "croppedDimensions=[${croppedWidth}x${croppedHeight}], " +
+                "coverage=${"%.2f".format(coveragePercentage)}%, " +
+                "detectionBox=[left=${boundingBox.left}, top=${boundingBox.top}, right=${boundingBox.right}, bottom=${boundingBox.bottom}], " +
+                "activePixels=$activePixelCount")
 
             val croppedMaskPixels = IntArray(croppedWidth * croppedHeight)
             for (y in 0 until croppedHeight) {

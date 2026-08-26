@@ -9,6 +9,8 @@ import com.aura.core.vision.model.PipelineState
 import com.aura.core.vision.model.PipelineResult
 import com.aura.core.vision.model.PoseResult
 import com.aura.feature.camera.domain.TorsoTracker
+import com.aura.feature.camera.domain.VirtualTryOnController
+import com.aura.feature.camera.presentation.overlay.GarmentOverlayRendererElement
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -18,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class OverlayRendererViewModel @Inject constructor(
     private val visionPipeline: VisionPipeline,
-    private val overlayManager: OverlayManager
+    private val overlayManager: OverlayManager,
+    private val virtualTryOnController: VirtualTryOnController
 ) : ViewModel() {
 
     val overlayState: StateFlow<OverlayState> = overlayManager.state
@@ -116,7 +119,16 @@ class OverlayRendererViewModel @Inject constructor(
                 elements.add(TrackedTorsoBoxElement(transform = transform, pose = lastPose))
             }
         }
-
+        
+        // 2b. Virtual Try-On Garment Overlay
+        elements.add(
+            GarmentOverlayRendererElement(
+                pose = pose,
+                timestampMs = result.timestampMs,
+                virtualTryOnController = virtualTryOnController
+            )
+        )
+        
         // 3. Tracking -> Bounding box
         if (result.tracking != null && result.tracking!!.isTracking) {
             elements.add(
@@ -170,5 +182,10 @@ class OverlayRendererViewModel @Inject constructor(
         }
 
         overlayManager.updateElements(elements)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        virtualTryOnController.reset()
     }
 }

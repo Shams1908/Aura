@@ -61,6 +61,8 @@ class GarmentExtractionEngineTest {
         return mockBitmap
     }
 
+    private lateinit var logMockedStatic: MockedStatic<android.util.Log>
+
     @Before
     fun setUp() {
         mockBitmap = mock(Bitmap::class.java)
@@ -72,11 +74,13 @@ class GarmentExtractionEngineTest {
         // Stub standard mockBitmap behavior
         `when`(mockBitmap.width).thenReturn(640)
         `when`(mockBitmap.height).thenReturn(640)
+
+        logMockedStatic = mockStatic(android.util.Log::class.java)
     }
 
     @After
     fun tearDown() {
-        // No-op as static mocks are isolated to test blocks
+        logMockedStatic.close()
     }
 
     @Test
@@ -140,7 +144,10 @@ class GarmentExtractionEngineTest {
 
         // Then
         assertTrue(result.isFailure)
-        assertEquals(AIError.ModelUnavailable, result.exceptionOrNull())
+        val exception = result.exceptionOrNull()
+        assertTrue(exception is AIError.ModelUnavailable)
+        assertEquals("shirt", (exception as AIError.ModelUnavailable).category)
+        assertEquals(0.85f, exception.confidence ?: 0f, 0.001f)
     }
 
     @Test
@@ -175,7 +182,10 @@ class GarmentExtractionEngineTest {
 
         // Then
         assertTrue(result.isFailure)
-        assertEquals(AIError.SegmentationFailed, result.exceptionOrNull())
+        val exception = result.exceptionOrNull()
+        assertTrue(exception is AIError.SegmentationFailed)
+        assertEquals("shirt", (exception as AIError.SegmentationFailed).category)
+        assertEquals(0.85f, exception.confidence ?: 0f, 0.001f)
     }
 
     @Test
@@ -209,7 +219,12 @@ class GarmentExtractionEngineTest {
         // Bounding box is [10, 10, 100, 100]. We stub getPixels to simulate a clothes pixel at (20, 20)
         doAnswer { invocation ->
             val pixels = invocation.getArgument<IntArray>(0)
-            pixels[20 * 640 + 20] = android.graphics.Color.WHITE
+            // Fill a 20x10 block starting at (20, 20) to have 200 active pixels (above 150 min threshold)
+            for (row in 20 until 40) {
+                for (col in 20 until 30) {
+                    pixels[row * 640 + col] = android.graphics.Color.WHITE
+                }
+            }
             null
         }.`when`(mockMaskBitmap).getPixels(
             anyIntArray(),
@@ -297,6 +312,64 @@ class GarmentExtractionEngineTest {
 
         // Then
         assertTrue(result.isFailure)
-        assertEquals(AIError.SegmentationFailed, result.exceptionOrNull())
+        val exception = result.exceptionOrNull()
+        assertTrue(exception is AIError.SegmentationFailed)
+        assertEquals("shirt", (exception as AIError.SegmentationFailed).category)
+        assertEquals(0.85f, exception.confidence ?: 0f, 0.001f)
+    }
+    @Test
+    fun testExtractGarmentUnrealisticallySmallMask() = runTest {
+        // Given
+        val highConfDetection = Detection(
+            label = "shirt",
+            classId = 0,
+            confidence = 0.85f,
+            boundingBox = RectF().apply {
+                left = 10f
+                top = 10f
+                right = 100f
+                bottom = 100f
+            }
+        )
+        `when`(yoloDetector.predict(mockBitmap)).thenReturn(listOf(highConfDetection))
+        `when`(garmentSegmenter.segment(mockBitmap)).thenReturn(
+            Result.success(
+                GarmentSegmentationResult(
+                    mask = mockMaskBitmap,
+                    width = 640,
+                    height = 640,
+                    confidence = 0.92f,
+                    status = SegmentationStatus.SUCCESS
+                )
+            )
+        )
+
+        // Setup mask with only 5 active pixels (below the 150 minimum threshold)
+        doAnswer { invocation ->
+            val pixels = invocation.getArgument<IntArray>(0)
+            for (i in 0 until 5) {
+                pixels[(20 + i) * 640 + 20] = android.graphics.Color.WHITE
+            }
+            null
+        }.`when`(mockMaskBitmap).getPixels(
+            anyIntArray(),
+            anyInt(),
+            anyInt(),
+            anyInt(),
+            anyInt(),
+            anyInt(),
+            anyInt()
+        )
+
+        // When
+        val result = extractionEngine.extractGarment(testReferenceImage, mockBitmap)
+
+        // Then
+        assertTrue(result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue(exception is AIError.SegmentationFailed)
+        assertEquals("shirt", (exception as AIError.SegmentationFailed).category)
+        assertEquals(0.85f, exception.confidence ?: 0f, 0.001f)
     }
 }
+

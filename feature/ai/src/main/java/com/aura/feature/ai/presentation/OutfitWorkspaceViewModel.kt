@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.aura.feature.ai.data.FakeOutfitWorkspaceRepository
 import com.aura.feature.ai.domain.model.WorkspaceAction
 import com.aura.feature.ai.domain.GarmentExtractionEngine
+import com.aura.feature.ai.domain.GarmentAssetProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.aura.core.common.session.SessionManager
 import com.aura.core.common.session.OutfitSessionId
+import com.aura.feature.ai.inference.AIError
+
 
 /**
  * ViewModel for the Outfit Workspace feature managing states and action triggers.
@@ -27,7 +30,8 @@ class OutfitWorkspaceViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: FakeOutfitWorkspaceRepository,
     private val sessionManager: SessionManager,
-    private val garmentExtractionEngine: GarmentExtractionEngine
+    private val garmentExtractionEngine: GarmentExtractionEngine,
+    private val garmentAssetProvider: GarmentAssetProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<OutfitWorkspaceUiState>(OutfitWorkspaceUiState.Loading)
@@ -162,6 +166,7 @@ class OutfitWorkspaceViewModel @Inject constructor(
             val result = garmentExtractionEngine.extractGarment(resolvedRefImage, bitmap)
             result.fold(
                 onSuccess = { asset ->
+                    garmentAssetProvider.setGarmentAsset(asset)
                     _uiState.update { state ->
                         if (state is OutfitWorkspaceUiState.Success) {
                             state.copy(
@@ -181,8 +186,34 @@ class OutfitWorkspaceViewModel @Inject constructor(
                     android.util.Log.e("AURA_DEBUG", "Garment extraction error: ${error.message}")
                     _uiState.update { state ->
                         if (state is OutfitWorkspaceUiState.Success) {
+                            val preservedDetections = when (error) {
+                                is AIError.ModelUnavailable -> {
+                                    if (error.category != null) {
+                                        listOf(
+                                            com.aura.feature.ai.domain.model.DetectedClothing(
+                                                id = "ext_1",
+                                                name = error.category,
+                                                confidence = error.confidence ?: 0f
+                                            )
+                                        )
+                                    } else emptyList()
+                                }
+                                is AIError.SegmentationFailed -> {
+                                    if (error.category != null) {
+                                        listOf(
+                                            com.aura.feature.ai.domain.model.DetectedClothing(
+                                                id = "ext_1",
+                                                name = error.category,
+                                                confidence = error.confidence ?: 0f
+                                            )
+                                        )
+                                    } else emptyList()
+                                }
+                                else -> emptyList()
+                            }
                             state.copy(
                                 isProcessing = false,
+                                detectedItems = if (preservedDetections.isNotEmpty()) preservedDetections else state.detectedItems,
                                 infoMessage = error.message ?: "Garment extraction failed"
                             )
                         } else state
@@ -198,6 +229,7 @@ class OutfitWorkspaceViewModel @Inject constructor(
     fun removeImage() {
         viewModelScope.launch {
             sessionManager.completeSession()
+            garmentAssetProvider.setGarmentAsset(null)
         }
         removeImageInternal()
     }
